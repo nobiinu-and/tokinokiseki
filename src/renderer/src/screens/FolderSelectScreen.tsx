@@ -71,8 +71,8 @@ export function FolderSelectScreen(): JSX.Element {
     <div className="screen folder-select-screen">
       <div className="folder-select-center">
         <div className="app-logo">
-          <h1>EasyAlbum</h1>
-          <p className="app-subtitle">写真を見返す楽しさを</p>
+          <h1>ときのきせき</h1>
+          <p className="app-subtitle">あなたの癒しのギャラリーへ、ようこそ</p>
         </div>
 
         {isScanning && progress ? (
@@ -80,7 +80,7 @@ export function FolderSelectScreen(): JSX.Element {
         ) : (
           <>
             <button className="btn btn-primary btn-large" onClick={handleSelectFolder}>
-              フォルダを選択
+              あなたの思い出はどこにありますか？
             </button>
 
             {existingFolders.length > 0 && (

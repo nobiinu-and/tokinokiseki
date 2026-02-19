@@ -1,7 +1,7 @@
 {
-  "name": "easyalbum",
+  "name": "tokinokiseki",
   "version": "1.0.0",
-  "description": "Photo album app - browse, mark favorites, and enjoy slideshows",
+  "description": "写真を見返す楽しさを — フォルダの写真をイベントごとに閲覧、お気に入り選定、スライドショー",
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",

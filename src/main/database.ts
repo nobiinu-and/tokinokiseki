@@ -26,7 +26,7 @@ export async function initDatabase(): Promise<void> {
   if (initPromise) return initPromise
 
   initPromise = (async () => {
-    dbPath = path.join(app.getPath('userData'), 'easyalbum.db')
+    dbPath = path.join(app.getPath('userData'), 'tokinokiseki.db')
 
     const wasmPath = getWasmPath()
     const config = wasmPath ? { locateFile: (): string => wasmPath } : undefined

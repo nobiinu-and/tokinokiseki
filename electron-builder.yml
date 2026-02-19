@@ -1,5 +1,5 @@
-appId: com.easyalbum.app
-productName: EasyAlbum
+appId: com.tokinokiseki.app
+productName: ときのきせき
 directories:
   buildResources: build
 files:
@@ -10,13 +10,13 @@ files:
 asarUnpack:
   - '**/sql.js/dist/**'
 win:
-  executableName: EasyAlbum
+  executableName: tokinokiseki
   target:
     - target: nsis
       arch:
         - x64
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
-  shortcutName: EasyAlbum
-  uninstallDisplayName: EasyAlbum
+  shortcutName: ときのきせき
+  uninstallDisplayName: ときのきせき
   createDesktopShortcut: always

@@ -33,7 +33,7 @@ function createWindow(): void {
 }
 
 app.whenReady().then(async () => {
-  electronApp.setAppUserModelId('com.easyalbum')
+  electronApp.setAppUserModelId('com.tokinokiseki')
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
