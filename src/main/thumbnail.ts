@@ -8,11 +8,12 @@ import { app } from 'electron'
 const THUMB_SIZE = 300
 const HEIC_EXTENSIONS = new Set(['.heic', '.heif'])
 
-let thumbDir: string
-let heicCacheDir: string
-let workerPath: string
+let thumbDir: string | null = null
+let heicCacheDir: string | null = null
+let workerPath: string | null = null
 
-export function initThumbnails(): void {
+function ensureDirs(): void {
+  if (thumbDir) return
   thumbDir = path.join(app.getPath('userData'), 'thumbnails')
   heicCacheDir = path.join(app.getPath('userData'), 'heic-cache')
   if (!fs.existsSync(thumbDir)) {
@@ -21,13 +22,16 @@ export function initThumbnails(): void {
   if (!fs.existsSync(heicCacheDir)) {
     fs.mkdirSync(heicCacheDir, { recursive: true })
   }
-
-  // Worker script path (built output)
   workerPath = path.join(__dirname, 'heic-worker.js')
 }
 
+export function initThumbnails(): void {
+  ensureDirs()
+}
+
 export function getThumbDir(): string {
-  return thumbDir
+  ensureDirs()
+  return thumbDir!
 }
 
 export function getThumbnailFileName(filePath: string): string {
@@ -36,7 +40,8 @@ export function getThumbnailFileName(filePath: string): string {
 }
 
 export function getThumbnailPath(filePath: string): string {
-  return path.join(thumbDir, getThumbnailFileName(filePath))
+  ensureDirs()
+  return path.join(thumbDir!, getThumbnailFileName(filePath))
 }
 
 function isHeic(filePath: string): boolean {
@@ -44,13 +49,15 @@ function isHeic(filePath: string): boolean {
 }
 
 function getHeicCachePath(filePath: string): string {
+  ensureDirs()
   const hash = crypto.createHash('md5').update(filePath).digest('hex')
-  return path.join(heicCacheDir, `${hash}.jpg`)
+  return path.join(heicCacheDir!, `${hash}.jpg`)
 }
 
 function convertHeicToJpeg(filePath: string, outputPath: string): Promise<void> {
+  ensureDirs()
   return new Promise((resolve, reject) => {
-    const worker = new Worker(workerPath)
+    const worker = new Worker(workerPath!)
 
     const timeout = setTimeout(() => {
       worker.terminate()

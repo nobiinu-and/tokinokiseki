@@ -3,8 +3,9 @@ import path from 'path'
 import fs from 'fs'
 import { app } from 'electron'
 
-let db: SqlJsDatabase
+let db: SqlJsDatabase | null = null
 let dbPath: string
+let initPromise: Promise<void> | null = null
 
 function getWasmPath(): string {
   // In production, node_modules is inside the asar or unpacked
@@ -21,76 +22,94 @@ function getWasmPath(): string {
 }
 
 export async function initDatabase(): Promise<void> {
-  dbPath = path.join(app.getPath('userData'), 'easyalbum.db')
+  if (db) return
+  if (initPromise) return initPromise
 
-  const wasmPath = getWasmPath()
-  const config = wasmPath ? { locateFile: (): string => wasmPath } : undefined
-  const SQL = await initSqlJs(config)
+  initPromise = (async () => {
+    dbPath = path.join(app.getPath('userData'), 'easyalbum.db')
 
-  if (fs.existsSync(dbPath)) {
-    const buffer = fs.readFileSync(dbPath)
-    db = new SQL.Database(buffer)
-  } else {
-    db = new SQL.Database()
+    const wasmPath = getWasmPath()
+    const config = wasmPath ? { locateFile: (): string => wasmPath } : undefined
+    const SQL = await initSqlJs(config)
+
+    if (fs.existsSync(dbPath)) {
+      const buffer = fs.readFileSync(dbPath)
+      db = new SQL.Database(buffer)
+    } else {
+      db = new SQL.Database()
+    }
+
+    db.run(`
+      CREATE TABLE IF NOT EXISTS folders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        path TEXT NOT NULL UNIQUE,
+        last_scanned_at TEXT
+      )
+    `)
+
+    db.run(`
+      CREATE TABLE IF NOT EXISTS photos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        folder_id INTEGER NOT NULL,
+        file_path TEXT NOT NULL UNIQUE,
+        file_name TEXT NOT NULL,
+        taken_at TEXT,
+        file_modified_at TEXT,
+        width INTEGER,
+        height INTEGER,
+        is_best INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT (datetime('now')),
+        FOREIGN KEY (folder_id) REFERENCES folders(id)
+      )
+    `)
+
+    db.run('CREATE INDEX IF NOT EXISTS idx_photos_taken_at ON photos(taken_at)')
+    db.run('CREATE INDEX IF NOT EXISTS idx_photos_is_best ON photos(is_best)')
+    db.run('CREATE INDEX IF NOT EXISTS idx_photos_folder_id ON photos(folder_id)')
+
+    saveDatabase()
+  })()
+
+  return initPromise
+}
+
+/** Ensure DB is ready before accessing. Call from async IPC handlers. */
+export async function ensureDb(): Promise<SqlJsDatabase> {
+  if (!db) {
+    await initDatabase()
   }
+  return db!
+}
 
-  db.run(`
-    CREATE TABLE IF NOT EXISTS folders (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      path TEXT NOT NULL UNIQUE,
-      last_scanned_at TEXT
-    )
-  `)
-
-  db.run(`
-    CREATE TABLE IF NOT EXISTS photos (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      folder_id INTEGER NOT NULL,
-      file_path TEXT NOT NULL UNIQUE,
-      file_name TEXT NOT NULL,
-      taken_at TEXT,
-      file_modified_at TEXT,
-      width INTEGER,
-      height INTEGER,
-      is_best INTEGER DEFAULT 0,
-      created_at TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (folder_id) REFERENCES folders(id)
-    )
-  `)
-
-  db.run('CREATE INDEX IF NOT EXISTS idx_photos_taken_at ON photos(taken_at)')
-  db.run('CREATE INDEX IF NOT EXISTS idx_photos_is_best ON photos(is_best)')
-  db.run('CREATE INDEX IF NOT EXISTS idx_photos_folder_id ON photos(folder_id)')
-
-  saveDatabase()
+function getDb(): SqlJsDatabase {
+  if (!db) throw new Error('Database not initialized. Call ensureDb() first.')
+  return db
 }
 
 export function saveDatabase(): void {
-  const data = db.export()
+  const data = getDb().export()
   const buffer = Buffer.from(data)
   fs.writeFileSync(dbPath, buffer)
-}
-
-export function getDb(): SqlJsDatabase {
-  return db
 }
 
 // --- Folder queries ---
 
 export function upsertFolder(folderPath: string): number {
-  const existing = db.exec('SELECT id FROM folders WHERE path = ?', [folderPath])
+  const d = getDb()
+  const existing = d.exec('SELECT id FROM folders WHERE path = ?', [folderPath])
   if (existing.length > 0 && existing[0].values.length > 0) {
     return existing[0].values[0][0] as number
   }
-  db.run('INSERT INTO folders (path, last_scanned_at) VALUES (?, datetime("now"))', [folderPath])
-  const result = db.exec('SELECT last_insert_rowid()')
+  d.run('INSERT INTO folders (path, last_scanned_at) VALUES (?, datetime("now"))', [folderPath])
+  const result = d.exec('SELECT last_insert_rowid()')
   const id = result[0].values[0][0] as number
   saveDatabase()
   return id
 }
 
 export function getFolders(): { id: number; path: string; lastScannedAt: string | null }[] {
-  const result = db.exec('SELECT id, path, last_scanned_at FROM folders ORDER BY id DESC')
+  const d = getDb()
+  const result = d.exec('SELECT id, path, last_scanned_at FROM folders ORDER BY id DESC')
   if (result.length === 0) return []
   return result[0].values.map((row) => ({
     id: row[0] as number,
@@ -102,7 +121,8 @@ export function getFolders(): { id: number; path: string; lastScannedAt: string 
 // --- Photo queries ---
 
 export function photoExists(filePath: string): boolean {
-  const result = db.exec('SELECT 1 FROM photos WHERE file_path = ?', [filePath])
+  const d = getDb()
+  const result = d.exec('SELECT 1 FROM photos WHERE file_path = ?', [filePath])
   return result.length > 0 && result[0].values.length > 0
 }
 
@@ -115,7 +135,8 @@ export function insertPhoto(photo: {
   width: number | null
   height: number | null
 }): number {
-  db.run(
+  const d = getDb()
+  d.run(
     `INSERT INTO photos (folder_id, file_path, file_name, taken_at, file_modified_at, width, height)
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [
@@ -128,7 +149,7 @@ export function insertPhoto(photo: {
       photo.height
     ]
   )
-  const result = db.exec('SELECT last_insert_rowid()')
+  const result = d.exec('SELECT last_insert_rowid()')
   return result[0].values[0][0] as number
 }
 
@@ -141,7 +162,8 @@ export function getEventSummary(
   representativeFilePath: string
   hasBest: boolean
 }[] {
-  const result = db.exec(
+  const d = getDb()
+  const result = d.exec(
     `SELECT
        date(COALESCE(taken_at, file_modified_at)) as event_date,
        COUNT(*) as photo_count,
@@ -182,7 +204,8 @@ export function getPhotosByDate(
   isBest: boolean
   createdAt: string
 }[] {
-  const result = db.exec(
+  const d = getDb()
+  const result = d.exec(
     `SELECT id, folder_id, file_path, file_name, taken_at, file_modified_at,
             width, height, is_best, created_at
      FROM photos
@@ -206,10 +229,11 @@ export function getPhotosByDate(
 }
 
 export function toggleBest(photoId: number): boolean {
-  db.run('UPDATE photos SET is_best = CASE WHEN is_best = 1 THEN 0 ELSE 1 END WHERE id = ?', [
+  const d = getDb()
+  d.run('UPDATE photos SET is_best = CASE WHEN is_best = 1 THEN 0 ELSE 1 END WHERE id = ?', [
     photoId
   ])
-  const result = db.exec('SELECT is_best FROM photos WHERE id = ?', [photoId])
+  const result = d.exec('SELECT is_best FROM photos WHERE id = ?', [photoId])
   const newValue = result.length > 0 ? (result[0].values[0][0] as number) === 1 : false
   saveDatabase()
   return newValue
@@ -218,7 +242,8 @@ export function toggleBest(photoId: number): boolean {
 export function getBestPhotos(
   folderId: number
 ): { id: number; filePath: string; fileName: string; takenAt: string | null }[] {
-  const result = db.exec(
+  const d = getDb()
+  const result = d.exec(
     `SELECT id, file_path, file_name, taken_at
      FROM photos
      WHERE folder_id = ? AND is_best = 1
@@ -238,7 +263,8 @@ export function getBestPhotosForDate(
   folderId: number,
   date: string
 ): { id: number; filePath: string; fileName: string; takenAt: string | null }[] {
-  const result = db.exec(
+  const d = getDb()
+  const result = d.exec(
     `SELECT id, file_path, file_name, taken_at
      FROM photos
      WHERE folder_id = ? AND is_best = 1 AND date(COALESCE(taken_at, file_modified_at)) = ?
@@ -257,7 +283,8 @@ export function getBestPhotosForDate(
 export function getPhotoById(
   photoId: number
 ): { filePath: string; fileName: string } | null {
-  const result = db.exec('SELECT file_path, file_name FROM photos WHERE id = ?', [photoId])
+  const d = getDb()
+  const result = d.exec('SELECT file_path, file_name FROM photos WHERE id = ?', [photoId])
   if (result.length === 0 || result[0].values.length === 0) return null
   return {
     filePath: result[0].values[0][0] as string,
@@ -266,6 +293,7 @@ export function getPhotoById(
 }
 
 export function updateFolderScanTime(folderId: number): void {
-  db.run('UPDATE folders SET last_scanned_at = datetime("now") WHERE id = ?', [folderId])
+  const d = getDb()
+  d.run('UPDATE folders SET last_scanned_at = datetime("now") WHERE id = ?', [folderId])
   saveDatabase()
 }

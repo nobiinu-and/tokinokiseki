@@ -1,7 +1,7 @@
 import { app, BrowserWindow } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import { initDatabase } from './database'
+import { initDatabase, saveDatabase } from './database'
 import { initThumbnails } from './thumbnail'
 import { registerIpcHandlers } from './ipc-handlers'
 
@@ -39,11 +39,11 @@ app.whenReady().then(async () => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  try {
-    await initDatabase()
-  } catch (err) {
-    console.error('Failed to initialize database:', err)
-  }
+  // DB initialization: also done lazily via ensureDb() in IPC handlers
+  // in case electron-vite dev reloads the main process
+  await initDatabase().catch((err) => {
+    console.error('Initial database setup failed, will retry on first access:', err)
+  })
   initThumbnails()
 
   createWindow()
@@ -51,6 +51,14 @@ app.whenReady().then(async () => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
+})
+
+app.on('before-quit', () => {
+  try {
+    saveDatabase()
+  } catch {
+    // DB save on quit failed
+  }
 })
 
 app.on('window-all-closed', () => {
