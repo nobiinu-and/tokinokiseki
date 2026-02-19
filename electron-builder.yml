@@ -1,0 +1,22 @@
+appId: com.easyalbum.app
+productName: EasyAlbum
+directories:
+  buildResources: build
+files:
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+asarUnpack:
+  - '**/sql.js/dist/**'
+win:
+  executableName: EasyAlbum
+  target:
+    - target: nsis
+      arch:
+        - x64
+nsis:
+  artifactName: ${name}-${version}-setup.${ext}
+  shortcutName: EasyAlbum
+  uninstallDisplayName: EasyAlbum
+  createDesktopShortcut: always
