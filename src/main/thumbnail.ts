@@ -4,6 +4,7 @@ import crypto from 'crypto'
 import path from 'path'
 import fs from 'fs'
 import { app } from 'electron'
+import exifr from 'exifr'
 
 const THUMB_SIZE = 300
 const HEIC_EXTENSIONS = new Set(['.heic', '.heif'])
@@ -84,7 +85,62 @@ function convertHeicToJpeg(filePath: string, outputPath: string): Promise<void> 
   })
 }
 
-function createThumbnailFromPath(sourcePath: string, thumbPath: string): void {
+/**
+ * Rotate a nativeImage's bitmap based on EXIF orientation.
+ * nativeImage does not reliably apply EXIF rotation, so we do it manually.
+ */
+function applyOrientationToNativeImage(
+  img: Electron.NativeImage,
+  orientation: number
+): Electron.NativeImage {
+  if (!orientation || orientation === 1) return img
+
+  const { width, height } = img.getSize()
+  const src = img.toBitmap()
+  const bpp = 4 // BGRA, 4 bytes per pixel
+
+  const transform = (
+    newW: number,
+    newH: number,
+    mapFn: (x: number, y: number) => [number, number]
+  ): Electron.NativeImage => {
+    const dst = Buffer.alloc(newW * newH * bpp)
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const srcOff = (y * width + x) * bpp
+        const [dx, dy] = mapFn(x, y)
+        const dstOff = (dy * newW + dx) * bpp
+        src.copy(dst, dstOff, srcOff, srcOff + bpp)
+      }
+    }
+    return nativeImage.createFromBitmap(dst, { width: newW, height: newH })
+  }
+
+  switch (orientation) {
+    case 2:
+      return transform(width, height, (x, y) => [width - 1 - x, y])
+    case 3:
+      return transform(width, height, (x, y) => [width - 1 - x, height - 1 - y])
+    case 4:
+      return transform(width, height, (x, y) => [x, height - 1 - y])
+    case 5:
+      return transform(height, width, (x, y) => [y, x])
+    case 6:
+      return transform(height, width, (x, y) => [height - 1 - y, x])
+    case 7:
+      return transform(height, width, (x, y) => [height - 1 - y, width - 1 - x])
+    case 8:
+      return transform(height, width, (x, y) => [y, width - 1 - x])
+    default:
+      return img
+  }
+}
+
+function createThumbnailFromPath(
+  sourcePath: string,
+  thumbPath: string,
+  orientation: number = 1
+): void {
   const image = nativeImage.createFromPath(sourcePath)
   if (image.isEmpty()) {
     throw new Error(`Failed to load image: ${sourcePath}`)
@@ -96,7 +152,8 @@ function createThumbnailFromPath(sourcePath: string, thumbPath: string): void {
   const newHeight = Math.round(size.height * scale)
 
   const resized = image.resize({ width: newWidth, height: newHeight, quality: 'good' })
-  const jpegBuffer = resized.toJPEG(80)
+  const corrected = applyOrientationToNativeImage(resized, orientation)
+  const jpegBuffer = corrected.toJPEG(80)
 
   fs.writeFileSync(thumbPath, jpegBuffer)
 }
@@ -108,6 +165,14 @@ export async function generateThumbnail(filePath: string): Promise<string> {
     return thumbPath
   }
 
+  // Read EXIF orientation from the original file
+  let orientation = 1
+  try {
+    orientation = (await exifr.orientation(filePath)) || 1
+  } catch {
+    // No EXIF data
+  }
+
   if (isHeic(filePath)) {
     // HEIC: convert to JPEG cache first, then generate thumbnail from that
     const jpegCachePath = getHeicCachePath(filePath)
@@ -116,12 +181,12 @@ export async function generateThumbnail(filePath: string): Promise<string> {
       await convertHeicToJpeg(filePath, jpegCachePath)
     }
 
-    createThumbnailFromPath(jpegCachePath, thumbPath)
+    createThumbnailFromPath(jpegCachePath, thumbPath, orientation)
     return thumbPath
   }
 
   // Non-HEIC: direct thumbnail generation
-  createThumbnailFromPath(filePath, thumbPath)
+  createThumbnailFromPath(filePath, thumbPath, orientation)
   return thumbPath
 }
 

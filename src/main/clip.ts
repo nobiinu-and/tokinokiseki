@@ -2,6 +2,7 @@ import { Worker } from 'worker_threads'
 import { BrowserWindow, app } from 'electron'
 import path from 'path'
 import fs from 'fs'
+import exifr from 'exifr'
 import { IPC_CHANNELS } from '../renderer/src/types/ipc'
 import * as db from './database'
 import { getThumbnailPath } from './thumbnail'
@@ -102,6 +103,16 @@ export async function startAutoTag(
       const thumbPath = getThumbnailPath(photo.filePath)
       const imagePath = fs.existsSync(thumbPath) ? thumbPath : photo.filePath
 
+      // Always read EXIF orientation from the original file.
+      // nativeImage does not reliably apply EXIF rotation when generating thumbnails,
+      // so both thumbnails and originals may need correction.
+      let orientation = 1
+      try {
+        orientation = (await exifr.orientation(photo.filePath)) || 1
+      } catch {
+        // No EXIF data
+      }
+
       try {
         const result = await new Promise<{ label: string; score: number }[]>(
           (resolve, reject) => {
@@ -121,7 +132,7 @@ export async function startAutoTag(
               }
             }
             worker.on('message', handler)
-            worker.postMessage({ type: 'classify', imagePath, labels: labelStrings })
+            worker.postMessage({ type: 'classify', imagePath, labels: labelStrings, orientation })
           }
         )
 
