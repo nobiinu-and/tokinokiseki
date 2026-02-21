@@ -13,5 +13,12 @@ export const IPC_CHANNELS = {
   GET_BEST_PHOTOS_FOR_DATE: 'photos:getBestForDate',
 
   GET_THUMBNAIL_PATH: 'thumbnail:getPath',
-  GET_PHOTO_FILE_URL: 'photo:getFileUrl'
+  GET_PHOTO_FILE_URL: 'photo:getFileUrl',
+
+  START_AUTO_TAG: 'tags:startAutoTag',
+  AUTO_TAG_PROGRESS: 'tags:progress',
+  AUTO_TAG_COMPLETE: 'tags:complete',
+  GET_TAGS_FOR_PHOTO: 'tags:getForPhoto',
+  GET_TAG_STATS: 'tags:getStats',
+  GET_PHOTO_IDS_BY_TAG: 'tags:getPhotoIds'
 } as const

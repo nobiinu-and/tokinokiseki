@@ -42,3 +42,19 @@ export interface ScanProgress {
   total: number
   currentFile: string
 }
+
+export interface PhotoTag {
+  name: string
+  confidence: number
+}
+
+export interface AutoTagProgress {
+  phase: 'loading_model' | 'classifying'
+  current: number
+  total: number
+}
+
+export interface TagLabelDef {
+  label: string
+  display: string
+}

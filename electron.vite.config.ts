@@ -9,7 +9,8 @@ export default defineConfig({
       rollupOptions: {
         input: {
           index: resolve('src/main/index.ts'),
-          'heic-worker': resolve('src/main/heic-worker.ts')
+          'heic-worker': resolve('src/main/heic-worker.ts'),
+          'clip-worker': resolve('src/main/clip-worker.ts')
         }
       }
     }

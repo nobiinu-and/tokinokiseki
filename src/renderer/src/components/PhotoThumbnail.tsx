@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import { TagBadge } from './TagBadge'
+import type { PhotoTag } from '../types/models'
 
 interface Props {
   photoId: number
@@ -6,6 +8,7 @@ interface Props {
   isBest: boolean
   onToggleBest: (photoId: number) => void
   onClick: () => void
+  tags?: PhotoTag[]
 }
 
 export function PhotoThumbnail({
@@ -13,7 +16,8 @@ export function PhotoThumbnail({
   filePath,
   isBest,
   onToggleBest,
-  onClick
+  onClick,
+  tags
 }: Props): JSX.Element {
   const [thumbUrl, setThumbUrl] = useState<string>('')
 
@@ -38,6 +42,13 @@ export function PhotoThumbnail({
       >
         {isBest ? '★' : '☆'}
       </button>
+      {tags && tags.length > 0 && (
+        <div className="photo-tags">
+          {tags.map((tag) => (
+            <TagBadge key={tag.name} name={tag.name} confidence={tag.confidence} />
+          ))}
+        </div>
+      )}
     </div>
   )
 }

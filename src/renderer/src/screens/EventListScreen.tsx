@@ -1,14 +1,17 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Virtuoso } from 'react-virtuoso'
 import { useApp } from '../context/AppContext'
 import { useEvents } from '../hooks/useEvents'
 import { EventCard } from '../components/EventCard'
 import { TopBar } from '../components/TopBar'
+import { AutoTagDialog } from '../components/AutoTagDialog'
 
 export function EventListScreen(): JSX.Element {
   const navigate = useNavigate()
   const { currentFolder } = useApp()
   const { events, loading } = useEvents(currentFolder?.id ?? null)
+  const [showAutoTag, setShowAutoTag] = useState(false)
 
   if (!currentFolder) {
     navigate('/')
@@ -29,9 +32,14 @@ export function EventListScreen(): JSX.Element {
         title="イベント一覧"
         onBack={handleSettings}
         actions={
-          <button className="btn btn-accent" onClick={handleSlideshow}>
-            ▶ スライドショー
-          </button>
+          <div className="topbar-actions-group">
+            <button className="btn btn-secondary" onClick={() => setShowAutoTag(true)}>
+              タグ付け
+            </button>
+            <button className="btn btn-accent" onClick={handleSlideshow}>
+              ▶ スライドショー
+            </button>
+          </div>
         }
       />
 
@@ -88,6 +96,16 @@ export function EventListScreen(): JSX.Element {
             }}
           />
         </div>
+      )}
+
+      {showAutoTag && currentFolder && (
+        <AutoTagDialog
+          folderId={currentFolder.id}
+          onClose={() => setShowAutoTag(false)}
+          onComplete={() => {
+            // Tags have been applied, no need to reload events
+          }}
+        />
       )}
     </div>
   )

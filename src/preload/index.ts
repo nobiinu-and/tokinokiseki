@@ -42,5 +42,35 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke(IPC_CHANNELS.GET_THUMBNAIL_PATH, photoId),
 
   getPhotoFileUrl: (filePath: string) =>
-    ipcRenderer.invoke(IPC_CHANNELS.GET_PHOTO_FILE_URL, filePath)
+    ipcRenderer.invoke(IPC_CHANNELS.GET_PHOTO_FILE_URL, filePath),
+
+  // --- Tags ---
+
+  startAutoTag: (folderId: number, labels: { label: string; display: string }[], threshold: number, date?: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.START_AUTO_TAG, folderId, labels, threshold, date),
+
+  onAutoTagProgress: (callback: (progress: unknown) => void) => {
+    const handler = (_event: unknown, progress: unknown): void => callback(progress)
+    ipcRenderer.on(IPC_CHANNELS.AUTO_TAG_PROGRESS, handler as never)
+    return (): void => {
+      ipcRenderer.removeListener(IPC_CHANNELS.AUTO_TAG_PROGRESS, handler as never)
+    }
+  },
+
+  onAutoTagComplete: (callback: (result: unknown) => void) => {
+    const handler = (_event: unknown, result: unknown): void => callback(result)
+    ipcRenderer.on(IPC_CHANNELS.AUTO_TAG_COMPLETE, handler as never)
+    return (): void => {
+      ipcRenderer.removeListener(IPC_CHANNELS.AUTO_TAG_COMPLETE, handler as never)
+    }
+  },
+
+  getTagsForPhoto: (photoId: number) =>
+    ipcRenderer.invoke(IPC_CHANNELS.GET_TAGS_FOR_PHOTO, photoId),
+
+  getTagStats: (folderId: number) =>
+    ipcRenderer.invoke(IPC_CHANNELS.GET_TAG_STATS, folderId),
+
+  getPhotoIdsByTag: (folderId: number, tagName: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.GET_PHOTO_IDS_BY_TAG, folderId, tagName)
 })

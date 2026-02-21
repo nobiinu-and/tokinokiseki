@@ -4,6 +4,7 @@ import { IPC_CHANNELS } from '../renderer/src/types/ipc'
 import * as db from './database'
 import { scanFolder } from './scanner'
 import { getThumbnailPath, getDisplayPath } from './thumbnail'
+import { startAutoTag } from './clip'
 
 export function registerIpcHandlers(mainWindow: BrowserWindow): void {
   ipcMain.handle(IPC_CHANNELS.SELECT_FOLDER, async () => {
@@ -70,4 +71,40 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     // For HEIC files, return the cached JPEG conversion if available
     return pathToFileURL(getDisplayPath(filePath)).toString()
   })
+
+  // --- Tag handlers ---
+
+  ipcMain.handle(
+    IPC_CHANNELS.START_AUTO_TAG,
+    async (_event, folderId: number, labels: { label: string; display: string }[], threshold: number, date?: string) => {
+      await db.ensureDb()
+      // Run in background, don't await — progress is sent via events
+      startAutoTag(folderId, labels, threshold, mainWindow, date).catch((err) => {
+        console.error('Auto-tag error:', err)
+        mainWindow.webContents.send(IPC_CHANNELS.AUTO_TAG_COMPLETE, {
+          folderId,
+          tagged: 0,
+          error: err instanceof Error ? err.message : String(err)
+        })
+      })
+    }
+  )
+
+  ipcMain.handle(IPC_CHANNELS.GET_TAGS_FOR_PHOTO, async (_event, photoId: number) => {
+    await db.ensureDb()
+    return db.getTagsForPhoto(photoId)
+  })
+
+  ipcMain.handle(IPC_CHANNELS.GET_TAG_STATS, async (_event, folderId: number) => {
+    await db.ensureDb()
+    return db.getTagStats(folderId)
+  })
+
+  ipcMain.handle(
+    IPC_CHANNELS.GET_PHOTO_IDS_BY_TAG,
+    async (_event, folderId: number, tagName: string) => {
+      await db.ensureDb()
+      return db.getPhotoIdsByTag(folderId, tagName)
+    }
+  )
 }

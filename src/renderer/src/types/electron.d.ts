@@ -1,4 +1,4 @@
-import type { Folder, Photo, EventSummary, ScanProgress } from './models'
+import type { Folder, Photo, EventSummary, ScanProgress, PhotoTag, AutoTagProgress, TagLabelDef } from './models'
 
 export interface ElectronAPI {
   selectFolder(): Promise<string | null>
@@ -13,6 +13,13 @@ export interface ElectronAPI {
   getBestPhotosForDate(folderId: number, date: string): Promise<Photo[]>
   getThumbnailPath(photoId: number): Promise<string>
   getPhotoFileUrl(filePath: string): Promise<string>
+
+  startAutoTag(folderId: number, labels: TagLabelDef[], threshold: number, date?: string): Promise<void>
+  onAutoTagProgress(callback: (progress: AutoTagProgress) => void): () => void
+  onAutoTagComplete(callback: (result: { folderId: number; tagged: number }) => void): () => void
+  getTagsForPhoto(photoId: number): Promise<PhotoTag[]>
+  getTagStats(folderId: number): Promise<{ name: string; count: number }[]>
+  getPhotoIdsByTag(folderId: number, tagName: string): Promise<number[]>
 }
 
 declare global {

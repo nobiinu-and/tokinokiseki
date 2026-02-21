@@ -67,6 +67,27 @@ export async function initDatabase(): Promise<void> {
     db.run('CREATE INDEX IF NOT EXISTS idx_photos_is_best ON photos(is_best)')
     db.run('CREATE INDEX IF NOT EXISTS idx_photos_folder_id ON photos(folder_id)')
 
+    db.run(`
+      CREATE TABLE IF NOT EXISTS tags (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE
+      )
+    `)
+
+    db.run(`
+      CREATE TABLE IF NOT EXISTS photo_tags (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        photo_id INTEGER NOT NULL,
+        tag_id INTEGER NOT NULL,
+        confidence REAL NOT NULL DEFAULT 0,
+        FOREIGN KEY (photo_id) REFERENCES photos(id),
+        FOREIGN KEY (tag_id) REFERENCES tags(id),
+        UNIQUE(photo_id, tag_id)
+      )
+    `)
+    db.run('CREATE INDEX IF NOT EXISTS idx_photo_tags_photo ON photo_tags(photo_id)')
+    db.run('CREATE INDEX IF NOT EXISTS idx_photo_tags_tag ON photo_tags(tag_id)')
+
     saveDatabase()
   })()
 
@@ -296,4 +317,103 @@ export function updateFolderScanTime(folderId: number): void {
   const d = getDb()
   d.run('UPDATE folders SET last_scanned_at = datetime("now") WHERE id = ?', [folderId])
   saveDatabase()
+}
+
+// --- Tag queries ---
+
+export function upsertTag(name: string): number {
+  const d = getDb()
+  const existing = d.exec('SELECT id FROM tags WHERE name = ?', [name])
+  if (existing.length > 0 && existing[0].values.length > 0) {
+    return existing[0].values[0][0] as number
+  }
+  d.run('INSERT INTO tags (name) VALUES (?)', [name])
+  const result = d.exec('SELECT last_insert_rowid()')
+  return result[0].values[0][0] as number
+}
+
+export function insertPhotoTag(photoId: number, tagId: number, confidence: number): void {
+  const d = getDb()
+  d.run(
+    `INSERT INTO photo_tags (photo_id, tag_id, confidence) VALUES (?, ?, ?)
+     ON CONFLICT(photo_id, tag_id) DO UPDATE SET confidence = excluded.confidence`,
+    [photoId, tagId, confidence]
+  )
+}
+
+export function getTagsForPhoto(photoId: number): { name: string; confidence: number }[] {
+  const d = getDb()
+  const result = d.exec(
+    `SELECT t.name, pt.confidence
+     FROM photo_tags pt
+     JOIN tags t ON t.id = pt.tag_id
+     WHERE pt.photo_id = ?
+     ORDER BY pt.confidence DESC`,
+    [photoId]
+  )
+  if (result.length === 0) return []
+  return result[0].values.map((row) => ({
+    name: row[0] as string,
+    confidence: row[1] as number
+  }))
+}
+
+export function getTagStats(folderId: number): { name: string; count: number }[] {
+  const d = getDb()
+  const result = d.exec(
+    `SELECT t.name, COUNT(*) as cnt
+     FROM photo_tags pt
+     JOIN tags t ON t.id = pt.tag_id
+     JOIN photos p ON p.id = pt.photo_id
+     WHERE p.folder_id = ?
+     GROUP BY t.name
+     ORDER BY cnt DESC`,
+    [folderId]
+  )
+  if (result.length === 0) return []
+  return result[0].values.map((row) => ({
+    name: row[0] as string,
+    count: row[1] as number
+  }))
+}
+
+export function getPhotoIdsByTag(folderId: number, tagName: string): number[] {
+  const d = getDb()
+  const result = d.exec(
+    `SELECT pt.photo_id
+     FROM photo_tags pt
+     JOIN tags t ON t.id = pt.tag_id
+     JOIN photos p ON p.id = pt.photo_id
+     WHERE p.folder_id = ? AND t.name = ?
+     ORDER BY pt.confidence DESC`,
+    [folderId, tagName]
+  )
+  if (result.length === 0) return []
+  return result[0].values.map((row) => row[0] as number)
+}
+
+export function clearPhotoTags(folderId: number): void {
+  const d = getDb()
+  d.run(
+    `DELETE FROM photo_tags WHERE photo_id IN (
+       SELECT id FROM photos WHERE folder_id = ?
+     )`,
+    [folderId]
+  )
+  saveDatabase()
+}
+
+export function getAllPhotosInFolder(
+  folderId: number
+): { id: number; filePath: string }[] {
+  const d = getDb()
+  const result = d.exec(
+    'SELECT id, file_path FROM photos WHERE folder_id = ? ORDER BY id',
+    [folderId]
+  )
+  if (result.length === 0) return []
+  return result[0].values.map((row) => ({
+    id: row[0] as number,
+    filePath: row[1] as string
+  }))
 }
