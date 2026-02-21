@@ -1,4 +1,4 @@
-import type { Folder, Photo, EventSummary, ScanProgress, PhotoTag, AutoTagProgress, TagLabelDef } from './models'
+import type { Folder, Photo, EventSummary, ScanProgress, PhotoTag, AutoTagProgress, TagLabelDef, DuplicateGroup } from './models'
 
 export interface ElectronAPI {
   selectFolder(): Promise<string | null>
@@ -20,6 +20,9 @@ export interface ElectronAPI {
   getTagsForPhoto(photoId: number): Promise<PhotoTag[]>
   getTagStats(folderId: number): Promise<{ name: string; count: number }[]>
   getPhotoIdsByTag(folderId: number, tagName: string): Promise<number[]>
+
+  findDuplicates(folderId: number, date: string, threshold?: number): Promise<DuplicateGroup[]>
+  deletePhoto(photoId: number): Promise<void>
 }
 
 declare global {

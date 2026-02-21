@@ -58,3 +58,14 @@ export interface TagLabelDef {
   label: string
   display: string
 }
+
+export interface DuplicatePhotoInfo {
+  id: number
+  filePath: string
+  fileName: string
+  hash: string
+}
+
+export interface DuplicateGroup {
+  photos: DuplicatePhotoInfo[]
+}

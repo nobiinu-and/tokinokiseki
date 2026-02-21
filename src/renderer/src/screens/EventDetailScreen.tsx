@@ -7,6 +7,7 @@ import { PhotoThumbnail } from '../components/PhotoThumbnail'
 import { Lightbox } from '../components/Lightbox'
 import { TopBar } from '../components/TopBar'
 import { AutoTagDialog } from '../components/AutoTagDialog'
+import { DuplicateDialog } from '../components/DuplicateDialog'
 import type { PhotoTag } from '../types/models'
 
 function formatDate(dateStr: string): string {
@@ -23,10 +24,11 @@ export function EventDetailScreen(): JSX.Element {
   const navigate = useNavigate()
   const { date } = useParams<{ date: string }>()
   const { currentFolder } = useApp()
-  const { photos, loading, toggleBest } = usePhotos(currentFolder?.id ?? null, date ?? null)
+  const { photos, loading, toggleBest, reload } = usePhotos(currentFolder?.id ?? null, date ?? null)
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
   const [photoTags, setPhotoTags] = useState<Record<number, PhotoTag[]>>({})
   const [showAutoTag, setShowAutoTag] = useState(false)
+  const [showDuplicates, setShowDuplicates] = useState(false)
 
   const loadTags = useCallback(async (): Promise<void> => {
     if (photos.length === 0) return
@@ -58,6 +60,9 @@ export function EventDetailScreen(): JSX.Element {
         onBack={() => navigate('/events')}
         actions={
           <div className="topbar-actions-group">
+            <button className="btn btn-secondary" onClick={() => setShowDuplicates(true)}>
+              重複チェック
+            </button>
             <button className="btn btn-secondary" onClick={() => setShowAutoTag(true)}>
               タグ付け
             </button>
@@ -114,6 +119,15 @@ export function EventDetailScreen(): JSX.Element {
           date={date}
           onClose={() => setShowAutoTag(false)}
           onComplete={() => loadTags()}
+        />
+      )}
+
+      {showDuplicates && currentFolder && (
+        <DuplicateDialog
+          folderId={currentFolder.id}
+          date={date}
+          onClose={() => setShowDuplicates(false)}
+          onComplete={() => reload()}
         />
       )}
     </div>

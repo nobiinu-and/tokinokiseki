@@ -1,10 +1,12 @@
-import { ipcMain, dialog, BrowserWindow } from 'electron'
+import { ipcMain, dialog, shell, BrowserWindow } from 'electron'
 import { pathToFileURL } from 'url'
+import fs from 'fs'
 import { IPC_CHANNELS } from '../renderer/src/types/ipc'
 import * as db from './database'
 import { scanFolder } from './scanner'
 import { getThumbnailPath, getDisplayPath } from './thumbnail'
 import { startAutoTag } from './clip'
+import { findDuplicateGroups } from './duplicate'
 
 export function registerIpcHandlers(mainWindow: BrowserWindow): void {
   ipcMain.handle(IPC_CHANNELS.SELECT_FOLDER, async () => {
@@ -107,4 +109,37 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
       return db.getPhotoIdsByTag(folderId, tagName)
     }
   )
+
+  // --- Duplicate detection ---
+
+  ipcMain.handle(
+    IPC_CHANNELS.FIND_DUPLICATES,
+    async (_event, folderId: number, date: string, threshold?: number) => {
+      await db.ensureDb()
+      return findDuplicateGroups(folderId, date, threshold)
+    }
+  )
+
+  ipcMain.handle(IPC_CHANNELS.DELETE_PHOTO, async (_event, photoId: number) => {
+    await db.ensureDb()
+    const result = db.deletePhoto(photoId)
+    if (!result) return
+
+    // Move original file to trash
+    try {
+      await shell.trashItem(result.filePath)
+    } catch (err) {
+      console.error('Failed to trash file:', err)
+    }
+
+    // Remove thumbnail
+    const thumbPath = getThumbnailPath(result.filePath)
+    try {
+      if (fs.existsSync(thumbPath)) {
+        fs.unlinkSync(thumbPath)
+      }
+    } catch (err) {
+      console.error('Failed to remove thumbnail:', err)
+    }
+  })
 }

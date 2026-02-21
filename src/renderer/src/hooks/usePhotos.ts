@@ -5,11 +5,13 @@ interface UsePhotosResult {
   photos: Photo[]
   loading: boolean
   toggleBest: (photoId: number) => Promise<void>
+  reload: () => void
 }
 
 export function usePhotos(folderId: number | null, date: string | null): UsePhotosResult {
   const [photos, setPhotos] = useState<Photo[]>([])
   const [loading, setLoading] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     if (folderId === null || date === null) return
@@ -18,7 +20,7 @@ export function usePhotos(folderId: number | null, date: string | null): UsePhot
       .getPhotosByDate(folderId, date)
       .then(setPhotos)
       .finally(() => setLoading(false))
-  }, [folderId, date])
+  }, [folderId, date, reloadKey])
 
   const toggleBest = useCallback(async (photoId: number) => {
     const newValue = await window.api.toggleBest(photoId)
@@ -27,5 +29,9 @@ export function usePhotos(folderId: number | null, date: string | null): UsePhot
     )
   }, [])
 
-  return { photos, loading, toggleBest }
+  const reload = useCallback(() => {
+    setReloadKey((k) => k + 1)
+  }, [])
+
+  return { photos, loading, toggleBest, reload }
 }

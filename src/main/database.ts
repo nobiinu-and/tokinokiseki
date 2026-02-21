@@ -313,6 +313,18 @@ export function getPhotoById(
   }
 }
 
+export function deletePhoto(photoId: number): { filePath: string } | null {
+  const d = getDb()
+  const result = d.exec('SELECT file_path FROM photos WHERE id = ?', [photoId])
+  if (result.length === 0 || result[0].values.length === 0) return null
+  const filePath = result[0].values[0][0] as string
+
+  d.run('DELETE FROM photo_tags WHERE photo_id = ?', [photoId])
+  d.run('DELETE FROM photos WHERE id = ?', [photoId])
+  saveDatabase()
+  return { filePath }
+}
+
 export function updateFolderScanTime(folderId: number): void {
   const d = getDb()
   d.run('UPDATE folders SET last_scanned_at = datetime("now") WHERE id = ?', [folderId])

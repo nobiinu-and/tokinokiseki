@@ -20,5 +20,8 @@ export const IPC_CHANNELS = {
   AUTO_TAG_COMPLETE: 'tags:complete',
   GET_TAGS_FOR_PHOTO: 'tags:getForPhoto',
   GET_TAG_STATS: 'tags:getStats',
-  GET_PHOTO_IDS_BY_TAG: 'tags:getPhotoIds'
+  GET_PHOTO_IDS_BY_TAG: 'tags:getPhotoIds',
+
+  FIND_DUPLICATES: 'duplicates:find',
+  DELETE_PHOTO: 'photos:delete'
 } as const
