@@ -1,17 +1,25 @@
-import { useState } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Virtuoso } from 'react-virtuoso'
+import { Virtuoso, type VirtuosoHandle, type ListRange } from 'react-virtuoso'
 import { useApp } from '../context/AppContext'
 import { useEvents } from '../hooks/useEvents'
 import { EventCard } from '../components/EventCard'
 import { TopBar } from '../components/TopBar'
 import { AutoTagDialog } from '../components/AutoTagDialog'
 
+// Persist scroll position across navigations (module-level, survives remounts)
+let savedScrollIndex = 0
+
 export function EventListScreen(): JSX.Element {
   const navigate = useNavigate()
   const { currentFolder } = useApp()
   const { events, loading } = useEvents(currentFolder?.id ?? null)
   const [showAutoTag, setShowAutoTag] = useState(false)
+  const virtuosoRef = useRef<VirtuosoHandle>(null)
+
+  const handleRangeChanged = useCallback((range: ListRange) => {
+    savedScrollIndex = range.startIndex
+  }, [])
 
   if (!currentFolder) {
     navigate('/')
@@ -57,7 +65,10 @@ export function EventListScreen(): JSX.Element {
       ) : (
         <div className="event-list-container">
           <Virtuoso
+            ref={virtuosoRef}
             data={events}
+            initialTopMostItemIndex={savedScrollIndex}
+            rangeChanged={handleRangeChanged}
             itemContent={(index, event) => {
               const prevEvent = index > 0 ? events[index - 1] : null
               const nextEvent = index < events.length - 1 ? events[index + 1] : null
