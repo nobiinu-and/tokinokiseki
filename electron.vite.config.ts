@@ -10,7 +10,8 @@ export default defineConfig({
         input: {
           index: resolve('src/main/index.ts'),
           'heic-worker': resolve('src/main/heic-worker.ts'),
-          'clip-worker': resolve('src/main/clip-worker.ts')
+          'clip-worker': resolve('src/main/clip-worker.ts'),
+          'detect-worker': resolve('src/main/detect-worker.ts')
         }
       }
     }

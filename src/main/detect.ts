@@ -7,14 +7,72 @@ import { IPC_CHANNELS } from '../renderer/src/types/ipc'
 import * as db from './database'
 import { getThumbnailPath } from './thumbnail'
 
-interface LabelDef {
-  label: string
-  display: string
+const COCO_LABEL_MAP: Record<string, string> = {
+  person: '人物',
+  bicycle: '自転車',
+  car: '車',
+  motorcycle: 'バイク',
+  airplane: '飛行機',
+  bus: 'バス',
+  train: '電車',
+  truck: 'トラック',
+  boat: '船',
+  'traffic light': '信号機',
+  'fire hydrant': '消火栓',
+  'stop sign': '停止標識',
+  bench: 'ベンチ',
+  bird: '鳥',
+  cat: '猫',
+  dog: '犬',
+  horse: '馬',
+  sheep: '羊',
+  cow: '牛',
+  elephant: '象',
+  bear: 'クマ',
+  zebra: 'シマウマ',
+  giraffe: 'キリン',
+  backpack: 'リュック',
+  umbrella: '傘',
+  handbag: 'カバン',
+  tie: 'ネクタイ',
+  suitcase: 'スーツケース',
+  bottle: 'ボトル',
+  'wine glass': 'ワイングラス',
+  cup: 'カップ',
+  fork: 'フォーク',
+  knife: 'ナイフ',
+  spoon: 'スプーン',
+  bowl: 'ボウル',
+  banana: 'バナナ',
+  apple: 'リンゴ',
+  sandwich: 'サンドイッチ',
+  pizza: 'ピザ',
+  cake: 'ケーキ',
+  chair: '椅子',
+  couch: 'ソファ',
+  'potted plant': '鉢植え',
+  bed: 'ベッド',
+  'dining table': 'テーブル',
+  tv: 'テレビ',
+  laptop: 'ノートPC',
+  'cell phone': 'スマホ',
+  book: '本',
+  clock: '時計',
+  vase: '花瓶',
+  scissors: 'ハサミ',
+  'teddy bear': 'ぬいぐるみ',
+  'sports ball': 'ボール',
+  'baseball bat': 'バット',
+  'tennis racket': 'ラケット',
+  skateboard: 'スケボー',
+  surfboard: 'サーフボード',
+  ski: 'スキー',
+  snowboard: 'スノーボード',
+  kite: '凧'
 }
 
-export async function startAutoTag(
+export async function startDetection(
   folderId: number,
-  labels: LabelDef[],
   threshold: number,
   mainWindow: BrowserWindow,
   date?: string
@@ -29,30 +87,19 @@ export async function startAutoTag(
     return { tagged: 0 }
   }
 
-  // Prepare model cache directory
-  const cacheDir = path.join(app.getPath('userData'), 'clip-models')
+  const cacheDir = path.join(app.getPath('userData'), 'detect-models')
   if (!fs.existsSync(cacheDir)) {
     fs.mkdirSync(cacheDir, { recursive: true })
   }
 
-  const workerPath = path.join(__dirname, 'clip-worker.js')
+  const workerPath = path.join(__dirname, 'detect-worker.js')
   const worker = new Worker(workerPath)
-
-  // Ensure tags exist in DB
-  const tagMap = new Map<string, { tagId: number; display: string }>()
-  for (const l of labels) {
-    const tagId = db.upsertTag(l.display)
-    tagMap.set(l.label, { tagId, display: l.display })
-  }
-  db.saveDatabase()
-
-  const labelStrings = labels.map((l) => l.label)
 
   // Wait for model init
   await new Promise<void>((resolve, reject) => {
     const timeout = setTimeout(() => {
       worker.terminate()
-      reject(new Error('CLIP model initialization timed out (5 min)'))
+      reject(new Error('Object detection model initialization timed out (5 min)'))
     }, 300000)
 
     const handler = (msg: { type: string; message?: string }): void => {
@@ -63,7 +110,7 @@ export async function startAutoTag(
       } else if (msg.type === 'error') {
         clearTimeout(timeout)
         worker.off('message', handler)
-        reject(new Error(msg.message || 'CLIP init failed'))
+        reject(new Error(msg.message || 'Detection init failed'))
       }
     }
     worker.on('message', handler)
@@ -73,7 +120,7 @@ export async function startAutoTag(
     })
 
     mainWindow.webContents.send(IPC_CHANNELS.AUTO_TAG_PROGRESS, {
-      phase: 'loading_model' as const,
+      phase: 'loading_detect_model' as const,
       current: 0,
       total
     })
@@ -86,13 +133,9 @@ export async function startAutoTag(
   let tagged = 0
 
   for (const photo of photos) {
-    // Use thumbnail if available for faster processing
     const thumbPath = getThumbnailPath(photo.filePath)
     const imagePath = fs.existsSync(thumbPath) ? thumbPath : photo.filePath
 
-    // Always read EXIF orientation from the original file.
-    // nativeImage does not reliably apply EXIF rotation when generating thumbnails,
-    // so both thumbnails and originals may need correction.
     let orientation = 1
     try {
       orientation = (await exifr.orientation(photo.filePath)) || 1
@@ -104,10 +147,14 @@ export async function startAutoTag(
       const result = await new Promise<{ label: string; score: number }[]>(
         (resolve, reject) => {
           const timeout = setTimeout(() => {
-            reject(new Error(`Classification timed out: ${photo.filePath}`))
+            reject(new Error(`Detection timed out: ${photo.filePath}`))
           }, 30000)
 
-          const handler = (msg: { type: string; tags?: { label: string; score: number }[]; message?: string }): void => {
+          const handler = (msg: {
+            type: string
+            tags?: { label: string; score: number }[]
+            message?: string
+          }): void => {
             if (msg.type === 'result') {
               clearTimeout(timeout)
               worker.off('message', handler)
@@ -115,28 +162,25 @@ export async function startAutoTag(
             } else if (msg.type === 'error') {
               clearTimeout(timeout)
               worker.off('message', handler)
-              reject(new Error(msg.message || 'Classification failed'))
+              reject(new Error(msg.message || 'Detection failed'))
             }
           }
           worker.on('message', handler)
-          worker.postMessage({ type: 'classify', imagePath, labels: labelStrings, orientation })
+          worker.postMessage({ type: 'detect', imagePath, threshold, orientation })
         }
       )
 
-      // Save tags above threshold
+      // Save detected tags with Japanese display names
       let photoTagged = false
-      for (const tag of result) {
-        if (tag.score >= threshold) {
-          const entry = tagMap.get(tag.label)
-          if (entry) {
-            db.insertPhotoTag(photo.id, entry.tagId, tag.score)
-            photoTagged = true
-          }
-        }
+      for (const det of result) {
+        const displayName = COCO_LABEL_MAP[det.label] ?? det.label
+        const tagId = db.upsertTag(displayName)
+        db.insertPhotoTag(photo.id, tagId, det.score)
+        photoTagged = true
       }
       if (photoTagged) tagged++
     } catch (err) {
-      console.error(`Failed to classify photo ${photo.filePath}:`, err)
+      console.error(`Failed to detect objects in ${photo.filePath}:`, err)
     }
 
     processed++
@@ -145,7 +189,7 @@ export async function startAutoTag(
     }
 
     mainWindow.webContents.send(IPC_CHANNELS.AUTO_TAG_PROGRESS, {
-      phase: 'classifying' as const,
+      phase: 'detecting' as const,
       current: processed,
       total
     })

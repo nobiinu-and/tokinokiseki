@@ -798,6 +798,54 @@ body {
   margin-bottom: var(--spacing-sm);
 }
 
+.autotag-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-sm);
+}
+
+.autotag-section-header h3 {
+  margin-bottom: 0;
+}
+
+.autotag-toggle {
+  position: relative;
+  width: 44px;
+  height: 22px;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 11px;
+  cursor: pointer;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.autotag-toggle:checked {
+  background: var(--accent);
+}
+
+.autotag-toggle::before {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: white;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.2s;
+}
+
+.autotag-toggle:checked::before {
+  transform: translateX(22px);
+}
+
+.autotag-section-disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
 .autotag-labels {
   display: flex;
   flex-direction: column;

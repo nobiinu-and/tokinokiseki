@@ -49,7 +49,7 @@ export interface PhotoTag {
 }
 
 export interface AutoTagProgress {
-  phase: 'loading_model' | 'classifying'
+  phase: 'loading_detect_model' | 'detecting' | 'loading_model' | 'classifying'
   current: number
   total: number
 }

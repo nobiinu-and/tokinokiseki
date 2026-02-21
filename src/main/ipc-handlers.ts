@@ -6,7 +6,10 @@ import * as db from './database'
 import { scanFolder } from './scanner'
 import { getThumbnailPath, getDisplayPath } from './thumbnail'
 import { startAutoTag } from './clip'
+import { startDetection } from './detect'
 import { findDuplicateGroups } from './duplicate'
+
+let isAutoTagRunning = false
 
 export function registerIpcHandlers(mainWindow: BrowserWindow): void {
   ipcMain.handle(IPC_CHANNELS.SELECT_FOLDER, async () => {
@@ -78,17 +81,53 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
 
   ipcMain.handle(
     IPC_CHANNELS.START_AUTO_TAG,
-    async (_event, folderId: number, labels: { label: string; display: string }[], threshold: number, date?: string) => {
+    async (
+      _event,
+      folderId: number,
+      labels: { label: string; display: string }[],
+      threshold: number,
+      detectEnabled: boolean,
+      detectThreshold: number,
+      date?: string
+    ) => {
+      if (isAutoTagRunning) {
+        throw new Error('Auto-tagging is already running')
+      }
+      isAutoTagRunning = true
       await db.ensureDb()
+
       // Run in background, don't await — progress is sent via events
-      startAutoTag(folderId, labels, threshold, mainWindow, date).catch((err) => {
-        console.error('Auto-tag error:', err)
+      ;(async () => {
+        let totalTagged = 0
+
+        // Phase 1: Object detection (YOLO)
+        if (detectEnabled) {
+          const r = await startDetection(folderId, detectThreshold, mainWindow, date)
+          totalTagged += r.tagged
+        }
+
+        // Phase 2: Scene classification (CLIP)
+        if (labels.length > 0) {
+          const r = await startAutoTag(folderId, labels, threshold, mainWindow, date)
+          totalTagged += r.tagged
+        }
+
         mainWindow.webContents.send(IPC_CHANNELS.AUTO_TAG_COMPLETE, {
           folderId,
-          tagged: 0,
-          error: err instanceof Error ? err.message : String(err)
+          tagged: totalTagged
         })
-      })
+      })()
+        .catch((err) => {
+          console.error('Auto-tag error:', err)
+          mainWindow.webContents.send(IPC_CHANNELS.AUTO_TAG_COMPLETE, {
+            folderId,
+            tagged: 0,
+            error: err instanceof Error ? err.message : String(err)
+          })
+        })
+        .finally(() => {
+          isAutoTagRunning = false
+        })
     }
   )
 
