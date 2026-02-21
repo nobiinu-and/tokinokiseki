@@ -6,8 +6,16 @@ interface EventWithGroup extends EventSummary {
   consecutiveGroupId: number | null
 }
 
+interface YearMonthGroup {
+  label: string // "2024年8月"
+  year: number
+  count: number
+}
+
 interface UseEventsResult {
   events: EventWithGroup[]
+  groups: YearMonthGroup[]
+  groupCounts: number[]
   loading: boolean
   refresh: () => void
 }
@@ -68,8 +76,42 @@ function computeConsecutiveGroups(summaries: EventSummary[]): EventWithGroup[] {
   return events
 }
 
+function computeYearMonthGroups(events: EventWithGroup[]): YearMonthGroup[] {
+  if (events.length === 0) return []
+
+  const groups: YearMonthGroup[] = []
+  let currentYear = -1
+  let currentMonth = -1
+  let currentCount = 0
+
+  for (const event of events) {
+    const d = new Date(event.date)
+    const y = d.getFullYear()
+    const m = d.getMonth() + 1
+
+    if (y !== currentYear || m !== currentMonth) {
+      if (currentCount > 0) {
+        groups[groups.length - 1].count = currentCount
+      }
+      currentYear = y
+      currentMonth = m
+      currentCount = 1
+      groups.push({ label: `${y}年${m}月`, year: y, count: 0 })
+    } else {
+      currentCount++
+    }
+  }
+
+  if (groups.length > 0 && currentCount > 0) {
+    groups[groups.length - 1].count = currentCount
+  }
+
+  return groups
+}
+
 export function useEvents(folderId: number | null): UseEventsResult {
   const [events, setEvents] = useState<EventWithGroup[]>([])
+  const [groups, setGroups] = useState<YearMonthGroup[]>([])
   const [loading, setLoading] = useState(false)
 
   const refresh = useCallback(() => {
@@ -78,7 +120,9 @@ export function useEvents(folderId: number | null): UseEventsResult {
     window.api
       .getEventSummary(folderId)
       .then((summaries) => {
-        setEvents(computeConsecutiveGroups(summaries))
+        const computed = computeConsecutiveGroups(summaries)
+        setEvents(computed)
+        setGroups(computeYearMonthGroups(computed))
       })
       .finally(() => setLoading(false))
   }, [folderId])
@@ -87,5 +131,5 @@ export function useEvents(folderId: number | null): UseEventsResult {
     refresh()
   }, [refresh])
 
-  return { events, loading, refresh }
+  return { events, groups, groupCounts: groups.map((g) => g.count), loading, refresh }
 }

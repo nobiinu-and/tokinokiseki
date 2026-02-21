@@ -1,11 +1,12 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Virtuoso, type VirtuosoHandle, type ListRange } from 'react-virtuoso'
+import { GroupedVirtuoso, type GroupedVirtuosoHandle, type ListRange } from 'react-virtuoso'
 import { useApp } from '../context/AppContext'
 import { useEvents } from '../hooks/useEvents'
 import { EventCard } from '../components/EventCard'
 import { TopBar } from '../components/TopBar'
 import { AutoTagDialog } from '../components/AutoTagDialog'
+import { JumpBar } from '../components/JumpBar'
 
 // Persist scroll position across navigations (module-level, survives remounts)
 let savedScrollIndex = 0
@@ -13,12 +14,31 @@ let savedScrollIndex = 0
 export function EventListScreen(): JSX.Element {
   const navigate = useNavigate()
   const { currentFolder } = useApp()
-  const { events, loading } = useEvents(currentFolder?.id ?? null)
+  const { events, groups, groupCounts, loading } = useEvents(currentFolder?.id ?? null)
   const [showAutoTag, setShowAutoTag] = useState(false)
-  const virtuosoRef = useRef<VirtuosoHandle>(null)
+  const virtuosoRef = useRef<GroupedVirtuosoHandle>(null)
 
   const handleRangeChanged = useCallback((range: ListRange) => {
     savedScrollIndex = range.startIndex
+  }, [])
+
+  const jumpBarYears = useMemo(() => {
+    const seen = new Set<number>()
+    const years: { year: number; groupIndex: number }[] = []
+    groups.forEach((g, i) => {
+      if (!seen.has(g.year)) {
+        seen.add(g.year)
+        years.push({ year: g.year, groupIndex: i })
+      }
+    })
+    return years
+  }, [groups])
+
+  const handleJump = useCallback((groupIndex: number) => {
+    virtuosoRef.current?.scrollToIndex({
+      groupIndex,
+      align: 'start'
+    })
   }, [])
 
   if (!currentFolder) {
@@ -64,12 +84,20 @@ export function EventListScreen(): JSX.Element {
         </div>
       ) : (
         <div className="event-list-container">
-          <Virtuoso
+          <GroupedVirtuoso
             ref={virtuosoRef}
-            data={events}
+            groupCounts={groupCounts}
             initialTopMostItemIndex={savedScrollIndex}
             rangeChanged={handleRangeChanged}
-            itemContent={(index, event) => {
+            groupContent={(index) => (
+              <div className="event-list-section-header">
+                {groups[index]?.label}
+              </div>
+            )}
+            itemContent={(index) => {
+              const event = events[index]
+              if (!event) return null
+
               const prevEvent = index > 0 ? events[index - 1] : null
               const nextEvent = index < events.length - 1 ? events[index + 1] : null
 
@@ -106,6 +134,9 @@ export function EventListScreen(): JSX.Element {
               )
             }}
           />
+          {jumpBarYears.length > 1 && (
+            <JumpBar years={jumpBarYears} onJump={handleJump} />
+          )}
         </div>
       )}
 

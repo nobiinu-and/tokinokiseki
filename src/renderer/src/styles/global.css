@@ -263,6 +263,7 @@ body {
 .event-list-container {
   flex: 1;
   overflow: hidden;
+  position: relative;
 }
 
 .event-list-item {
@@ -297,6 +298,55 @@ body {
 .event-group-end .event-card-large,
 .event-group-end .event-card-compact {
   border-bottom-left-radius: var(--border-radius);
+}
+
+/* Section Header (year-month sticky) */
+.event-list-section-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: rgba(26, 26, 46, 0.85);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Jump Bar */
+.jump-bar {
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  z-index: 2;
+  padding: var(--spacing-sm) var(--spacing-xs);
+  background: rgba(15, 52, 96, 0.6);
+  border-radius: var(--border-radius);
+  backdrop-filter: blur(4px);
+}
+
+.jump-bar-item {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 5px 10px;
+  cursor: pointer;
+  border-radius: var(--border-radius-sm);
+  line-height: 1.3;
+  transition: color 0.15s, background-color 0.15s;
+}
+
+.jump-bar-item:hover {
+  color: var(--accent);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 /* ========== Event Card ========== */

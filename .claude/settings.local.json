@@ -8,7 +8,12 @@
       "WebFetch(domain:github.com)",
       "Bash(git add:*)",
       "Bash(ls:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git checkout:*)",
+      "Bash(npx electron-vite:*)",
+      "Bash(npm run build:*)",
+      "Bash(node -e:*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }
