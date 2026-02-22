@@ -105,6 +105,46 @@ export function TagSearchScreen(): JSX.Element {
     )
   }, [])
 
+  const allTagNames = useMemo(() => tagStats.map((s) => s.name), [tagStats])
+
+  const handleAddTag = useCallback(async (photoId: number, tagName: string): Promise<void> => {
+    try {
+      const updatedTags = await window.api.addTagToPhoto(photoId, tagName)
+      setPhotoTags((prev) => ({ ...prev, [photoId]: updatedTags }))
+      // Refresh tag stats to update the chip list
+      if (currentFolder) {
+        window.api.getTagStats(currentFolder.id).then(setTagStats)
+      }
+    } catch (err) {
+      console.error('Failed to add tag:', err)
+    }
+  }, [currentFolder])
+
+  const handleRemoveTag = useCallback(async (photoId: number, tagName: string): Promise<void> => {
+    try {
+      const updatedTags = await window.api.removeTagFromPhoto(photoId, tagName)
+      setPhotoTags((prev) => {
+        const next = { ...prev }
+        if (updatedTags.length > 0) {
+          next[photoId] = updatedTags
+        } else {
+          delete next[photoId]
+        }
+        return next
+      })
+      // Refresh tag stats to update the chip list
+      if (currentFolder) {
+        window.api.getTagStats(currentFolder.id).then(setTagStats)
+      }
+      // If we removed the currently selected tag from a photo, refresh the photo list
+      if (tagName === selectedTag && currentFolder) {
+        window.api.getPhotosByTag(currentFolder.id, tagName).then(setPhotos)
+      }
+    } catch (err) {
+      console.error('Failed to remove tag:', err)
+    }
+  }, [currentFolder, selectedTag])
+
   // Calculate flat index for Lightbox from date group + local index
   const openLightbox = useCallback(
     (photo: Photo) => {
@@ -189,6 +229,10 @@ export function TagSearchScreen(): JSX.Element {
           initialIndex={lightboxIndex}
           onClose={() => setLightboxIndex(null)}
           onToggleBest={toggleBest}
+          tags={photoTags}
+          allTags={allTagNames}
+          onAddTag={handleAddTag}
+          onRemoveTag={handleRemoveTag}
         />
       )}
     </div>

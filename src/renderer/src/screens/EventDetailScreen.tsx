@@ -27,6 +27,7 @@ export function EventDetailScreen(): JSX.Element {
   const { photos, loading, toggleBest, reload } = usePhotos(currentFolder?.id ?? null, date ?? null)
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
   const [photoTags, setPhotoTags] = useState<Record<number, PhotoTag[]>>({})
+  const [allTags, setAllTags] = useState<string[]>([])
   const [showAutoTag, setShowAutoTag] = useState(false)
   const [showDuplicates, setShowDuplicates] = useState(false)
 
@@ -42,9 +43,48 @@ export function EventDetailScreen(): JSX.Element {
     setPhotoTags(tagMap)
   }, [photos])
 
+  const loadAllTags = useCallback(async (): Promise<void> => {
+    if (!currentFolder) return
+    const stats = await window.api.getTagStats(currentFolder.id)
+    setAllTags(stats.map((s) => s.name))
+  }, [currentFolder])
+
   useEffect(() => {
     loadTags()
   }, [loadTags])
+
+  useEffect(() => {
+    loadAllTags()
+  }, [loadAllTags])
+
+  const handleAddTag = useCallback(async (photoId: number, tagName: string): Promise<void> => {
+    try {
+      const updatedTags = await window.api.addTagToPhoto(photoId, tagName)
+      setPhotoTags((prev) => ({ ...prev, [photoId]: updatedTags }))
+      if (!allTags.includes(tagName)) {
+        setAllTags((prev) => [...prev, tagName])
+      }
+    } catch (err) {
+      console.error('Failed to add tag:', err)
+    }
+  }, [allTags])
+
+  const handleRemoveTag = useCallback(async (photoId: number, tagName: string): Promise<void> => {
+    try {
+      const updatedTags = await window.api.removeTagFromPhoto(photoId, tagName)
+      setPhotoTags((prev) => {
+        const next = { ...prev }
+        if (updatedTags.length > 0) {
+          next[photoId] = updatedTags
+        } else {
+          delete next[photoId]
+        }
+        return next
+      })
+    } catch (err) {
+      console.error('Failed to remove tag:', err)
+    }
+  }, [])
 
   if (!currentFolder || !date) {
     navigate('/')
@@ -111,6 +151,10 @@ export function EventDetailScreen(): JSX.Element {
           initialIndex={lightboxIndex}
           onClose={() => setLightboxIndex(null)}
           onToggleBest={toggleBest}
+          tags={photoTags}
+          allTags={allTags}
+          onAddTag={handleAddTag}
+          onRemoveTag={handleRemoveTag}
         />
       )}
 

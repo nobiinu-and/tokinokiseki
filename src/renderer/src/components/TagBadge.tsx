@@ -3,7 +3,7 @@ interface Props {
   confidence?: number
 }
 
-const TAG_COLORS: Record<string, string> = {
+export const TAG_COLORS: Record<string, string> = {
   // Legacy + shared
   'ハトマスク': '#e94560',
   '人物': '#4a9eff',
@@ -30,7 +30,7 @@ const TAG_COLORS: Record<string, string> = {
   '鳥': '#78909c'
 }
 
-const DEFAULT_COLOR = '#6c6c8a'
+export const DEFAULT_COLOR = '#6c6c8a'
 
 export function TagBadge({ name, confidence }: Props): JSX.Element {
   const color = TAG_COLORS[name] || DEFAULT_COLOR

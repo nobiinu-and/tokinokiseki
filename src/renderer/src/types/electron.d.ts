@@ -22,6 +22,8 @@ export interface ElectronAPI {
   getTagStats(folderId: number): Promise<{ name: string; count: number }[]>
   getPhotoIdsByTag(folderId: number, tagName: string): Promise<number[]>
   getPhotosByTag(folderId: number, tagName: string): Promise<Photo[]>
+  addTagToPhoto(photoId: number, tagName: string): Promise<PhotoTag[]>
+  removeTagFromPhoto(photoId: number, tagName: string): Promise<PhotoTag[]>
 
   findDuplicates(folderId: number, date: string, threshold?: number): Promise<DuplicateGroup[]>
   deletePhoto(photoId: number): Promise<void>

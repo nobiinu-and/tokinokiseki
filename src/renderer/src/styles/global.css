@@ -588,11 +588,18 @@ body {
   left: 0;
   right: 0;
   display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
+}
+
+.lightbox-footer-info {
+  display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--spacing-lg);
-  padding: var(--spacing-md);
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
 }
 
 .lightbox-filename {
@@ -617,6 +624,100 @@ body {
 
 .lightbox-best-btn:hover {
   background: rgba(255, 255, 255, 0.2);
+}
+
+/* ========== Lightbox Tag Editor ========== */
+
+.lightbox-tag-editor {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 80%;
+}
+
+.lightbox-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.lightbox-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: 600;
+  color: white;
+  white-space: nowrap;
+}
+
+.lightbox-tag-remove {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+}
+
+.lightbox-tag-remove:hover {
+  color: white;
+}
+
+.lightbox-tag-input-wrapper {
+  position: relative;
+}
+
+.lightbox-tag-input {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--border-radius-sm);
+  padding: 3px 8px;
+  color: var(--text-primary);
+  font-size: 12px;
+  width: 120px;
+  outline: none;
+}
+
+.lightbox-tag-input:focus {
+  border-color: var(--accent);
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.lightbox-tag-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.lightbox-tag-suggestions {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  margin-bottom: 4px;
+  background: var(--bg-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--border-radius-sm);
+  max-height: 160px;
+  overflow-y: auto;
+  z-index: 20;
+}
+
+.lightbox-tag-suggestion {
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.lightbox-tag-suggestion:hover,
+.lightbox-tag-suggestion-active {
+  background: var(--bg-card-hover);
 }
 
 /* ========== Slideshow ========== */

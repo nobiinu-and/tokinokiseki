@@ -79,6 +79,12 @@ contextBridge.exposeInMainWorld('api', {
   getPhotosByTag: (folderId: number, tagName: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.GET_PHOTOS_BY_TAG, folderId, tagName),
 
+  addTagToPhoto: (photoId: number, tagName: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.ADD_TAG_TO_PHOTO, photoId, tagName),
+
+  removeTagFromPhoto: (photoId: number, tagName: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.REMOVE_TAG_FROM_PHOTO, photoId, tagName),
+
   // --- Duplicates ---
 
   findDuplicates: (folderId: number, date: string, threshold?: number) =>

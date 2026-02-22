@@ -197,6 +197,26 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     }
   )
 
+  ipcMain.handle(
+    IPC_CHANNELS.ADD_TAG_TO_PHOTO,
+    async (_event, photoId: number, tagName: string) => {
+      await db.ensureDb()
+      const tagId = db.upsertTag(tagName)
+      db.insertPhotoTag(photoId, tagId, 1)
+      db.saveDatabase()
+      return db.getTagsForPhoto(photoId)
+    }
+  )
+
+  ipcMain.handle(
+    IPC_CHANNELS.REMOVE_TAG_FROM_PHOTO,
+    async (_event, photoId: number, tagName: string) => {
+      await db.ensureDb()
+      db.deletePhotoTagByName(photoId, tagName)
+      return db.getTagsForPhoto(photoId)
+    }
+  )
+
   // --- Duplicate detection ---
 
   ipcMain.handle(

@@ -1,14 +1,19 @@
 import { useState, useEffect, useCallback } from 'react'
-import type { Photo } from '../types/models'
+import { LightboxTagEditor } from './LightboxTagEditor'
+import type { Photo, PhotoTag } from '../types/models'
 
 interface Props {
   photos: Photo[]
   initialIndex: number
   onClose: () => void
   onToggleBest: (photoId: number) => void
+  tags?: Record<number, PhotoTag[]>
+  allTags?: string[]
+  onAddTag?: (photoId: number, tagName: string) => Promise<void>
+  onRemoveTag?: (photoId: number, tagName: string) => Promise<void>
 }
 
-export function Lightbox({ photos, initialIndex, onClose, onToggleBest }: Props): JSX.Element {
+export function Lightbox({ photos, initialIndex, onClose, onToggleBest, tags, allTags, onAddTag, onRemoveTag }: Props): JSX.Element {
   const [currentIndex, setCurrentIndex] = useState(initialIndex)
   const [photoUrl, setPhotoUrl] = useState<string>('')
 
@@ -30,6 +35,7 @@ export function Lightbox({ photos, initialIndex, onClose, onToggleBest }: Props)
 
   useEffect(() => {
     const handler = (e: KeyboardEvent): void => {
+      if (e.target instanceof HTMLInputElement) return
       switch (e.key) {
         case 'Escape':
           onClose()
@@ -91,16 +97,26 @@ export function Lightbox({ photos, initialIndex, onClose, onToggleBest }: Props)
         </button>
 
         <div className="lightbox-footer">
-          <span className="lightbox-filename">{currentPhoto.fileName}</span>
-          <span className="lightbox-counter">
-            {currentIndex + 1} / {photos.length}
-          </span>
-          <button
-            className={`lightbox-best-btn ${currentPhoto.isBest ? 'photo-best-active' : ''}`}
-            onClick={() => onToggleBest(currentPhoto.id)}
-          >
-            {currentPhoto.isBest ? '★ ベスト' : '☆ ベストに設定'}
-          </button>
+          {tags && allTags && onAddTag && onRemoveTag && (
+            <LightboxTagEditor
+              tags={tags[currentPhoto.id] || []}
+              allTags={allTags}
+              onAdd={(tagName) => onAddTag(currentPhoto.id, tagName)}
+              onRemove={(tagName) => onRemoveTag(currentPhoto.id, tagName)}
+            />
+          )}
+          <div className="lightbox-footer-info">
+            <span className="lightbox-filename">{currentPhoto.fileName}</span>
+            <span className="lightbox-counter">
+              {currentIndex + 1} / {photos.length}
+            </span>
+            <button
+              className={`lightbox-best-btn ${currentPhoto.isBest ? 'photo-best-active' : ''}`}
+              onClick={() => onToggleBest(currentPhoto.id)}
+            >
+              {currentPhoto.isBest ? '★ ベスト' : '☆ ベストに設定'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

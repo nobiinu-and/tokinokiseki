@@ -57,7 +57,15 @@ app.on('before-quit', () => {
   try {
     saveDatabase()
   } catch {
-    // DB save on quit failed
+    // ignore
+  }
+})
+
+process.on('exit', () => {
+  try {
+    saveDatabase()
+  } catch {
+    // ignore
   }
 })
 

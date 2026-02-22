@@ -32,7 +32,8 @@ export async function initDatabase(): Promise<void> {
     const config = wasmPath ? { locateFile: (): string => wasmPath } : undefined
     const SQL = await initSqlJs(config)
 
-    if (fs.existsSync(dbPath)) {
+    const isNewDb = !fs.existsSync(dbPath)
+    if (!isNewDb) {
       const buffer = fs.readFileSync(dbPath)
       db = new SQL.Database(buffer)
     } else {
@@ -97,7 +98,10 @@ export async function initDatabase(): Promise<void> {
     db.run('CREATE INDEX IF NOT EXISTS idx_photo_tags_photo ON photo_tags(photo_id)')
     db.run('CREATE INDEX IF NOT EXISTS idx_photo_tags_tag ON photo_tags(tag_id)')
 
-    saveDatabase()
+    // Only save if schema was actually modified (first run or migration)
+    if (isNewDb || !hasOrientationCol) {
+      saveDatabase()
+    }
   })()
 
   return initPromise
@@ -119,7 +123,10 @@ function getDb(): SqlJsDatabase {
 export function saveDatabase(): void {
   const data = getDb().export()
   const buffer = Buffer.from(data)
-  fs.writeFileSync(dbPath, buffer)
+  const fd = fs.openSync(dbPath, 'w')
+  fs.writeSync(fd, buffer)
+  fs.fsyncSync(fd)
+  fs.closeSync(fd)
 }
 
 // --- Folder queries ---
@@ -457,6 +464,15 @@ export function getPhotoIdsByTag(folderId: number, tagName: string): number[] {
   )
   if (result.length === 0) return []
   return result[0].values.map((row) => row[0] as number)
+}
+
+export function deletePhotoTagByName(photoId: number, tagName: string): void {
+  const d = getDb()
+  d.run(
+    `DELETE FROM photo_tags WHERE photo_id = ? AND tag_id = (SELECT id FROM tags WHERE name = ?)`,
+    [photoId, tagName]
+  )
+  saveDatabase()
 }
 
 export function clearPhotoTags(folderId: number): void {

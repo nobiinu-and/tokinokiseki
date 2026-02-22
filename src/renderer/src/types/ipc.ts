@@ -23,6 +23,8 @@ export const IPC_CHANNELS = {
   GET_TAG_STATS: 'tags:getStats',
   GET_PHOTO_IDS_BY_TAG: 'tags:getPhotoIds',
   GET_PHOTOS_BY_TAG: 'tags:getPhotos',
+  ADD_TAG_TO_PHOTO: 'tags:addToPhoto',
+  REMOVE_TAG_FROM_PHOTO: 'tags:removeFromPhoto',
 
   FIND_DUPLICATES: 'duplicates:find',
   DELETE_PHOTO: 'photos:delete'
