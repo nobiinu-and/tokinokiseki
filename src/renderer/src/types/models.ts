@@ -50,7 +50,7 @@ export interface PhotoTag {
 }
 
 export interface AutoTagProgress {
-  phase: 'checking_rotation' | 'loading_detect_model' | 'detecting' | 'loading_model' | 'classifying'
+  phase: 'filtering_exif' | 'checking_rotation' | 'loading_detect_model' | 'detecting' | 'loading_model' | 'classifying'
   current: number
   total: number
 }

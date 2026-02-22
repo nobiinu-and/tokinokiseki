@@ -23,6 +23,8 @@ interface Props {
 
 function getProgressLabel(p: AutoTagProgress): string {
   switch (p.phase) {
+    case 'filtering_exif':
+      return `EXIF情報を確認中... ${p.current} / ${p.total} 枚`
     case 'checking_rotation':
       return `回転補正チェック中... ${p.current} / ${p.total} 枚`
     case 'loading_detect_model':

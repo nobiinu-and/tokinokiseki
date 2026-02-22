@@ -24,7 +24,13 @@ export async function startRotationCheck(
 
   // Filter to only photos missing EXIF orientation
   const needsCheck: { id: number; filePath: string }[] = []
-  for (const photo of photos) {
+  for (let i = 0; i < photos.length; i++) {
+    if (signal?.aborted) {
+      db.saveDatabase()
+      return { checked: 0, corrected: 0 }
+    }
+
+    const photo = photos[i]
     let orientation: number | null = null
     try {
       orientation = await exifr.orientation(photo.filePath)
@@ -36,6 +42,14 @@ export async function startRotationCheck(
     } else {
       // Has EXIF orientation — mark as not needing correction
       db.updateOrientationCorrection(photo.id, 0)
+    }
+
+    if ((i + 1) % 50 === 0 || i + 1 === total) {
+      mainWindow.webContents.send(IPC_CHANNELS.AUTO_TAG_PROGRESS, {
+        phase: 'filtering_exif' as const,
+        current: i + 1,
+        total
+      })
     }
   }
 
