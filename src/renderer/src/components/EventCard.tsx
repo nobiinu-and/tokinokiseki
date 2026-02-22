@@ -5,6 +5,7 @@ interface Props {
   isEvent: boolean
   hasBest: boolean
   onClick: () => void
+  onContextMenu?: (e: React.MouseEvent) => void
 }
 
 function formatDate(dateStr: string): string {
@@ -23,11 +24,12 @@ export function EventCard({
   thumbnailPath,
   isEvent,
   hasBest,
-  onClick
+  onClick,
+  onContextMenu
 }: Props): JSX.Element {
   if (!isEvent) {
     return (
-      <div className="event-card event-card-compact" onClick={onClick}>
+      <div className="event-card event-card-compact" onClick={onClick} onContextMenu={onContextMenu}>
         <img className="event-card-thumb-small" src={thumbnailPath} alt="" loading="lazy" />
         <div className="event-card-info-compact">
           <span className="event-card-date-compact">{formatDate(date)}</span>
@@ -39,7 +41,7 @@ export function EventCard({
   }
 
   return (
-    <div className="event-card event-card-large" onClick={onClick}>
+    <div className="event-card event-card-large" onClick={onClick} onContextMenu={onContextMenu}>
       <img className="event-card-thumb" src={thumbnailPath} alt="" loading="lazy" />
       <div className="event-card-info">
         <span className="event-card-date">{formatDate(date)}</span>

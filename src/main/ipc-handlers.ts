@@ -228,6 +228,61 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     }
   )
 
+  // --- Travel group handlers ---
+
+  ipcMain.handle(IPC_CHANNELS.GET_TRAVEL_GROUPS, async (_event, folderId: number) => {
+    await db.ensureDb()
+    return db.getTravelGroups(folderId)
+  })
+
+  ipcMain.handle(
+    IPC_CHANNELS.CREATE_TRAVEL_GROUP,
+    async (
+      _event,
+      folderId: number,
+      title: string,
+      startDate: string,
+      endDate: string
+    ) => {
+      await db.ensureDb()
+      return db.createTravelGroup(folderId, title, startDate, endDate)
+    }
+  )
+
+  ipcMain.handle(
+    IPC_CHANNELS.UPDATE_TRAVEL_GROUP,
+    async (_event, id: number, title: string, startDate: string, endDate: string) => {
+      await db.ensureDb()
+      db.updateTravelGroup(id, title, startDate, endDate)
+    }
+  )
+
+  ipcMain.handle(IPC_CHANNELS.DELETE_TRAVEL_GROUP, async (_event, id: number) => {
+    await db.ensureDb()
+    db.deleteTravelGroup(id)
+  })
+
+  ipcMain.handle(
+    IPC_CHANNELS.GET_TRAVEL_TITLE_SUGGESTION,
+    async (_event, folderId: number, startDate: string, endDate: string) => {
+      await db.ensureDb()
+      const excludeTags = ['人物', '屋外', '屋内', '食事', 'テーブル', '椅子', '車']
+      const tags = db
+        .getTopTagsForDateRange(folderId, startDate, endDate)
+        .filter((t) => !excludeTags.includes(t.name))
+
+      if (tags.length >= 2) {
+        return `${tags[0].name}・${tags[1].name}の旅`
+      } else if (tags.length === 1) {
+        return `${tags[0].name}の旅`
+      }
+      // Fallback: 旅行 (M/D〜M/D)
+      const s = new Date(startDate + 'T00:00:00')
+      const e = new Date(endDate + 'T00:00:00')
+      return `旅行 (${s.getMonth() + 1}/${s.getDate()}〜${e.getMonth() + 1}/${e.getDate()})`
+    }
+  )
+
   ipcMain.handle(IPC_CHANNELS.DELETE_PHOTO, async (_event, photoId: number) => {
     await db.ensureDb()
     const result = db.deletePhoto(photoId)

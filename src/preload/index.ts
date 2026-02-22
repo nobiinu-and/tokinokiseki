@@ -90,5 +90,22 @@ contextBridge.exposeInMainWorld('api', {
   findDuplicates: (folderId: number, date: string, threshold?: number) =>
     ipcRenderer.invoke(IPC_CHANNELS.FIND_DUPLICATES, folderId, date, threshold),
 
-  deletePhoto: (photoId: number) => ipcRenderer.invoke(IPC_CHANNELS.DELETE_PHOTO, photoId)
+  deletePhoto: (photoId: number) => ipcRenderer.invoke(IPC_CHANNELS.DELETE_PHOTO, photoId),
+
+  // --- Travel groups ---
+
+  getTravelGroups: (folderId: number) =>
+    ipcRenderer.invoke(IPC_CHANNELS.GET_TRAVEL_GROUPS, folderId),
+
+  createTravelGroup: (folderId: number, title: string, startDate: string, endDate: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.CREATE_TRAVEL_GROUP, folderId, title, startDate, endDate),
+
+  updateTravelGroup: (id: number, title: string, startDate: string, endDate: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.UPDATE_TRAVEL_GROUP, id, title, startDate, endDate),
+
+  deleteTravelGroup: (id: number) =>
+    ipcRenderer.invoke(IPC_CHANNELS.DELETE_TRAVEL_GROUP, id),
+
+  getTravelTitleSuggestion: (folderId: number, startDate: string, endDate: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.GET_TRAVEL_TITLE_SUGGESTION, folderId, startDate, endDate)
 })

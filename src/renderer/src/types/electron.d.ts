@@ -1,4 +1,4 @@
-import type { Folder, Photo, EventSummary, ScanProgress, PhotoTag, AutoTagProgress, TagLabelDef, DuplicateGroup } from './models'
+import type { Folder, Photo, EventSummary, ScanProgress, PhotoTag, AutoTagProgress, TagLabelDef, DuplicateGroup, TravelGroup } from './models'
 
 export interface ElectronAPI {
   selectFolder(): Promise<string | null>
@@ -27,6 +27,12 @@ export interface ElectronAPI {
 
   findDuplicates(folderId: number, date: string, threshold?: number): Promise<DuplicateGroup[]>
   deletePhoto(photoId: number): Promise<void>
+
+  getTravelGroups(folderId: number): Promise<TravelGroup[]>
+  createTravelGroup(folderId: number, title: string, startDate: string, endDate: string): Promise<number>
+  updateTravelGroup(id: number, title: string, startDate: string, endDate: string): Promise<void>
+  deleteTravelGroup(id: number): Promise<void>
+  getTravelTitleSuggestion(folderId: number, startDate: string, endDate: string): Promise<string>
 }
 
 declare global {

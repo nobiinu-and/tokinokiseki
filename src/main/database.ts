@@ -98,6 +98,25 @@ export async function initDatabase(): Promise<void> {
     db.run('CREATE INDEX IF NOT EXISTS idx_photo_tags_photo ON photo_tags(photo_id)')
     db.run('CREATE INDEX IF NOT EXISTS idx_photo_tags_tag ON photo_tags(tag_id)')
 
+    db.run(`
+      CREATE TABLE IF NOT EXISTS travel_groups (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        start_date TEXT NOT NULL,
+        end_date TEXT NOT NULL,
+        folder_id INTEGER NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (folder_id) REFERENCES folders(id)
+      )
+    `)
+    db.run(
+      'CREATE INDEX IF NOT EXISTS idx_travel_groups_dates ON travel_groups(start_date, end_date)'
+    )
+    db.run(
+      'CREATE INDEX IF NOT EXISTS idx_travel_groups_folder ON travel_groups(folder_id)'
+    )
+
     // Only save if schema was actually modified (first run or migration)
     if (isNewDb || !hasOrientationCol) {
       saveDatabase()
@@ -526,5 +545,125 @@ export function getPhotosNeedingRotationCheck(
   return result[0].values.map((row) => ({
     id: row[0] as number,
     filePath: row[1] as string
+  }))
+}
+
+// --- Travel group queries ---
+
+export function getTravelGroups(
+  folderId: number
+): {
+  id: number
+  title: string
+  startDate: string
+  endDate: string
+  folderId: number
+  createdAt: string
+  updatedAt: string
+}[] {
+  const d = getDb()
+  const result = d.exec(
+    `SELECT id, title, start_date, end_date, folder_id, created_at, updated_at
+     FROM travel_groups
+     WHERE folder_id = ?
+     ORDER BY start_date DESC`,
+    [folderId]
+  )
+  if (result.length === 0) return []
+  return result[0].values.map((row) => ({
+    id: row[0] as number,
+    title: row[1] as string,
+    startDate: row[2] as string,
+    endDate: row[3] as string,
+    folderId: row[4] as number,
+    createdAt: row[5] as string,
+    updatedAt: row[6] as string
+  }))
+}
+
+export function createTravelGroup(
+  folderId: number,
+  title: string,
+  startDate: string,
+  endDate: string
+): number {
+  const d = getDb()
+  // Check for overlapping groups
+  const overlap = d.exec(
+    `SELECT COUNT(*) FROM travel_groups
+     WHERE folder_id = ? AND start_date <= ? AND end_date >= ?`,
+    [folderId, endDate, startDate]
+  )
+  if (overlap.length > 0 && (overlap[0].values[0][0] as number) > 0) {
+    throw new Error('指定した期間は既存の旅行グループと重複しています')
+  }
+  d.run(
+    `INSERT INTO travel_groups (title, start_date, end_date, folder_id)
+     VALUES (?, ?, ?, ?)`,
+    [title, startDate, endDate, folderId]
+  )
+  const result = d.exec('SELECT last_insert_rowid()')
+  const id = result[0].values[0][0] as number
+  saveDatabase()
+  return id
+}
+
+export function updateTravelGroup(
+  id: number,
+  title: string,
+  startDate: string,
+  endDate: string
+): void {
+  const d = getDb()
+  // Get folder_id for overlap check
+  const current = d.exec('SELECT folder_id FROM travel_groups WHERE id = ?', [id])
+  if (current.length === 0 || current[0].values.length === 0) {
+    throw new Error('旅行グループが見つかりません')
+  }
+  const folderId = current[0].values[0][0] as number
+  // Check for overlapping groups (exclude self)
+  const overlap = d.exec(
+    `SELECT COUNT(*) FROM travel_groups
+     WHERE folder_id = ? AND id != ? AND start_date <= ? AND end_date >= ?`,
+    [folderId, id, endDate, startDate]
+  )
+  if (overlap.length > 0 && (overlap[0].values[0][0] as number) > 0) {
+    throw new Error('指定した期間は既存の旅行グループと重複しています')
+  }
+  d.run(
+    `UPDATE travel_groups SET title = ?, start_date = ?, end_date = ?, updated_at = datetime('now')
+     WHERE id = ?`,
+    [title, startDate, endDate, id]
+  )
+  saveDatabase()
+}
+
+export function deleteTravelGroup(id: number): void {
+  const d = getDb()
+  d.run('DELETE FROM travel_groups WHERE id = ?', [id])
+  saveDatabase()
+}
+
+export function getTopTagsForDateRange(
+  folderId: number,
+  startDate: string,
+  endDate: string
+): { name: string; count: number }[] {
+  const d = getDb()
+  const result = d.exec(
+    `SELECT t.name, COUNT(*) as cnt
+     FROM photo_tags pt
+     JOIN tags t ON t.id = pt.tag_id
+     JOIN photos p ON p.id = pt.photo_id
+     WHERE p.folder_id = ?
+       AND date(COALESCE(p.taken_at, p.file_modified_at)) BETWEEN ? AND ?
+     GROUP BY t.name
+     ORDER BY cnt DESC`,
+    [folderId, startDate, endDate]
+  )
+  if (result.length === 0) return []
+  return result[0].values.map((row) => ({
+    name: row[0] as string,
+    count: row[1] as number
   }))
 }

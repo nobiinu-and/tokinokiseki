@@ -70,3 +70,13 @@ export interface DuplicatePhotoInfo {
 export interface DuplicateGroup {
   photos: DuplicatePhotoInfo[]
 }
+
+export interface TravelGroup {
+  id: number
+  title: string
+  startDate: string
+  endDate: string
+  folderId: number
+  createdAt: string
+  updatedAt: string
+}

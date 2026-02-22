@@ -27,5 +27,11 @@ export const IPC_CHANNELS = {
   REMOVE_TAG_FROM_PHOTO: 'tags:removeFromPhoto',
 
   FIND_DUPLICATES: 'duplicates:find',
-  DELETE_PHOTO: 'photos:delete'
+  DELETE_PHOTO: 'photos:delete',
+
+  GET_TRAVEL_GROUPS: 'travel:getAll',
+  CREATE_TRAVEL_GROUP: 'travel:create',
+  UPDATE_TRAVEL_GROUP: 'travel:update',
+  DELETE_TRAVEL_GROUP: 'travel:delete',
+  GET_TRAVEL_TITLE_SUGGESTION: 'travel:suggestTitle'
 } as const

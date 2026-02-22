@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { EventSummary } from '../types/models'
 
-interface EventWithGroup extends EventSummary {
+export interface EventWithGroup extends EventSummary {
   isEvent: boolean
   consecutiveGroupId: number | null
 }
 
-interface YearMonthGroup {
+export interface YearMonthGroup {
   label: string // "2024年8月"
   year: number
   count: number
