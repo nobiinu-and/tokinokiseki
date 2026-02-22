@@ -472,7 +472,6 @@ export function deletePhotoTagByName(photoId: number, tagName: string): void {
     `DELETE FROM photo_tags WHERE photo_id = ? AND tag_id = (SELECT id FROM tags WHERE name = ?)`,
     [photoId, tagName]
   )
-  saveDatabase()
 }
 
 export function clearPhotoTags(folderId: number): void {

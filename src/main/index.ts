@@ -1,7 +1,7 @@
 import { app, BrowserWindow } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import { initDatabase, saveDatabase } from './database'
+import { initDatabase } from './database'
 import { initThumbnails } from './thumbnail'
 import { registerIpcHandlers } from './ipc-handlers'
 
@@ -53,21 +53,9 @@ app.whenReady().then(async () => {
   })
 })
 
-app.on('before-quit', () => {
-  try {
-    saveDatabase()
-  } catch {
-    // ignore
-  }
-})
-
-process.on('exit', () => {
-  try {
-    saveDatabase()
-  } catch {
-    // ignore
-  }
-})
+// saveDatabase() is called by each data-modifying operation individually.
+// Redundant re-export via db.export() at quit time can overwrite correct data
+// with a stale snapshot (known sql.js quirk — see docs/pitfalls-sql-js.md).
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

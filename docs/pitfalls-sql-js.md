@@ -64,3 +64,50 @@ if (isNewDb || !hasOrientationCol) {
 1. **sql.js では不要な `export()` + ファイル書き込みを避ける** — インメモリDBの再シリアライズは冪等とは限らない
 2. **データ変更を伴わない初期化処理で `saveDatabase()` を呼ばない** — スキーマ変更時のみ保存する
 3. **`saveDatabase()` は同期関数にする** — `fs.openSync` + `fs.writeSync` + `fs.fsyncSync` で確実にディスクに書き込む
+
+---
+
+## アプリ終了時の冗長な saveDatabase() によるデータ消失
+
+### 現象
+
+上記の `initDatabase()` 修正後も、タグの**削除**がアプリ再起動後に復活するケースが発生した（追加は正常に保存されていた）。
+
+- タグ削除後すぐに × ボタンで閉じると、再起動時に削除したタグが復活する
+- イベント一覧に画面遷移してから閉じると問題なし
+- 間欠的に発生（毎回ではない）
+
+### 原因
+
+`before-quit` と `process.on('exit')` で `saveDatabase()` を呼んでいた。各データ変更操作（IPC ハンドラ等）は既に操作直後に `saveDatabase()` を呼んでディスクに正しく保存しているが、終了時の冗長な `db.export()` 再実行が**直前の正しいファイルを古いスナップショットで上書き**していた。
+
+```typescript
+// 修正前（index.ts）
+app.on('before-quit', () => {
+  saveDatabase()   // ← db.export() で再シリアライズ → 正しいファイルを上書き
+})
+process.on('exit', () => {
+  saveDatabase()   // ← 同上
+})
+```
+
+### なぜ画面遷移すると問題が起きないか
+
+画面遷移時に IPC 呼び出し（`getEventSummary` 等の読み取り操作）が発生し、これが sql.js の内部状態をリフレッシュする。その結果、終了時の `db.export()` が正しいスナップショットを返すようになる。
+
+### 修正
+
+終了時の `saveDatabase()` を完全に削除した。全てのデータ変更箇所で個別に `saveDatabase()` を呼んでいるため、終了時の保存は不要。
+
+```typescript
+// 修正後（index.ts）
+// saveDatabase() is called by each data-modifying operation individually.
+// Redundant re-export via db.export() at quit time can overwrite correct data
+// with a stale snapshot (known sql.js quirk).
+```
+
+### 教訓
+
+4. **終了時に冗長な `saveDatabase()` を呼ばない** — 各操作で既に保存しているなら、終了時の `db.export()` 再実行は害になりうる
+5. **sql.js の `db.export()` は冪等ではない** — 同じ論理状態でも、呼び出しタイミングによって異なるバイナリを返すことがある
+6. **「念のため保存」は逆効果** — インメモリDBでは不要な再シリアライズがデータを壊すリスクがある

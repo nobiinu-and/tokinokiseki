@@ -213,6 +213,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     async (_event, photoId: number, tagName: string) => {
       await db.ensureDb()
       db.deletePhotoTagByName(photoId, tagName)
+      db.saveDatabase()
       return db.getTagsForPhoto(photoId)
     }
   )
