@@ -83,6 +83,49 @@ parentPort?.on(
         )
 
         parentPort?.postMessage({ type: 'ready' })
+      } else if (msg.type === 'check-rotation') {
+        if (!classifier) {
+          parentPort?.postMessage({ type: 'error', message: 'Model not initialized' })
+          return
+        }
+
+        const baseImage = await RawImage.read(msg.imagePath!)
+
+        // Map: correction degrees -> EXIF orientation value
+        const rotations: { degrees: number; orientation: number }[] = [
+          { degrees: 0, orientation: 1 },
+          { degrees: 90, orientation: 6 },
+          { degrees: 180, orientation: 3 },
+          { degrees: 270, orientation: 8 }
+        ]
+
+        const rotationLabels = [
+          'a correctly oriented upright photo',
+          'a rotated or upside down photo'
+        ]
+
+        let bestDegrees = 0
+        let bestScore = -1
+
+        for (const rot of rotations) {
+          const rotated =
+            rot.orientation === 1 ? baseImage : applyExifOrientation(baseImage, rot.orientation)
+          const results = await classifier(rotated, rotationLabels)
+          const resultArray = results as Array<{ label: string; score: number }>
+          const uprightScore =
+            resultArray.find((r) => r.label === rotationLabels[0])?.score ?? 0
+
+          if (uprightScore > bestScore) {
+            bestScore = uprightScore
+            bestDegrees = rot.degrees
+          }
+        }
+
+        parentPort?.postMessage({
+          type: 'rotation-result',
+          rotation: bestDegrees,
+          confidence: bestScore
+        })
       } else if (msg.type === 'classify') {
         if (!classifier) {
           parentPort?.postMessage({ type: 'error', message: 'Model not initialized' })

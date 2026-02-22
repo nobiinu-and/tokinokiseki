@@ -14,7 +14,7 @@ export interface ElectronAPI {
   getThumbnailPath(photoId: number): Promise<string>
   getPhotoFileUrl(filePath: string): Promise<string>
 
-  startAutoTag(folderId: number, labels: TagLabelDef[], threshold: number, detectEnabled: boolean, detectThreshold: number, date?: string): Promise<void>
+  startAutoTag(folderId: number, labels: TagLabelDef[], threshold: number, detectEnabled: boolean, detectThreshold: number, rotationEnabled: boolean, rotationThreshold: number, date?: string): Promise<void>
   onAutoTagProgress(callback: (progress: AutoTagProgress) => void): () => void
   onAutoTagComplete(callback: (result: { folderId: number; tagged: number }) => void): () => void
   getTagsForPhoto(photoId: number): Promise<PhotoTag[]>

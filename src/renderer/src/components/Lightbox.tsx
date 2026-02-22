@@ -61,7 +61,28 @@ export function Lightbox({ photos, initialIndex, onClose, onToggleBest }: Props)
 
         <div className="lightbox-image-container">
           {photoUrl && (
-            <img src={photoUrl} alt={currentPhoto.fileName} className="lightbox-image" />
+            <img
+              src={photoUrl}
+              alt={currentPhoto.fileName}
+              className="lightbox-image"
+              style={
+                currentPhoto.orientationCorrection && currentPhoto.orientationCorrection !== 0
+                  ? {
+                      transform: `rotate(${currentPhoto.orientationCorrection}deg)`,
+                      maxWidth:
+                        currentPhoto.orientationCorrection === 90 ||
+                        currentPhoto.orientationCorrection === 270
+                          ? '100vh'
+                          : undefined,
+                      maxHeight:
+                        currentPhoto.orientationCorrection === 90 ||
+                        currentPhoto.orientationCorrection === 270
+                          ? '100vw'
+                          : undefined
+                    }
+                  : undefined
+              }
+            />
           )}
         </div>
 

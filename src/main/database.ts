@@ -67,6 +67,15 @@ export async function initDatabase(): Promise<void> {
     db.run('CREATE INDEX IF NOT EXISTS idx_photos_is_best ON photos(is_best)')
     db.run('CREATE INDEX IF NOT EXISTS idx_photos_folder_id ON photos(folder_id)')
 
+    // Add orientation_correction column if not exists
+    const colInfo = db.exec("PRAGMA table_info('photos')")
+    const hasOrientationCol =
+      colInfo.length > 0 &&
+      colInfo[0].values.some((row) => row[1] === 'orientation_correction')
+    if (!hasOrientationCol) {
+      db.run('ALTER TABLE photos ADD COLUMN orientation_correction INTEGER DEFAULT NULL')
+    }
+
     db.run(`
       CREATE TABLE IF NOT EXISTS tags (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -224,11 +233,12 @@ export function getPhotosByDate(
   height: number | null
   isBest: boolean
   createdAt: string
+  orientationCorrection: number | null
 }[] {
   const d = getDb()
   const result = d.exec(
     `SELECT id, folder_id, file_path, file_name, taken_at, file_modified_at,
-            width, height, is_best, created_at
+            width, height, is_best, created_at, orientation_correction
      FROM photos
      WHERE folder_id = ? AND date(COALESCE(taken_at, file_modified_at)) = ?
      ORDER BY COALESCE(taken_at, file_modified_at) ASC`,
@@ -245,7 +255,8 @@ export function getPhotosByDate(
     width: row[6] as number | null,
     height: row[7] as number | null,
     isBest: (row[8] as number) === 1,
-    createdAt: row[9] as string
+    createdAt: row[9] as string,
+    orientationCorrection: row[10] as number | null
   }))
 }
 
@@ -423,6 +434,35 @@ export function getAllPhotosInFolder(
     'SELECT id, file_path FROM photos WHERE folder_id = ? ORDER BY id',
     [folderId]
   )
+  if (result.length === 0) return []
+  return result[0].values.map((row) => ({
+    id: row[0] as number,
+    filePath: row[1] as string
+  }))
+}
+
+// --- Orientation correction ---
+
+export function updateOrientationCorrection(photoId: number, correction: number): void {
+  const d = getDb()
+  d.run('UPDATE photos SET orientation_correction = ? WHERE id = ?', [correction, photoId])
+}
+
+export function getPhotosNeedingRotationCheck(
+  folderId: number,
+  date?: string
+): { id: number; filePath: string }[] {
+  const d = getDb()
+  const query = date
+    ? `SELECT id, file_path FROM photos
+       WHERE folder_id = ? AND orientation_correction IS NULL
+         AND date(COALESCE(taken_at, file_modified_at)) = ?
+       ORDER BY id`
+    : `SELECT id, file_path FROM photos
+       WHERE folder_id = ? AND orientation_correction IS NULL
+       ORDER BY id`
+  const params = date ? [folderId, date] : [folderId]
+  const result = d.exec(query, params)
   if (result.length === 0) return []
   return result[0].values.map((row) => ({
     id: row[0] as number,

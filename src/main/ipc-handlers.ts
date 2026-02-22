@@ -7,6 +7,7 @@ import { scanFolder } from './scanner'
 import { getThumbnailPath, getDisplayPath } from './thumbnail'
 import { startAutoTag } from './clip'
 import { startDetection } from './detect'
+import { startRotationCheck } from './rotation'
 import { findDuplicateGroups } from './duplicate'
 
 let isAutoTagRunning = false
@@ -88,6 +89,8 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
       threshold: number,
       detectEnabled: boolean,
       detectThreshold: number,
+      rotationEnabled: boolean,
+      rotationThreshold: number,
       date?: string
     ) => {
       if (isAutoTagRunning) {
@@ -99,6 +102,11 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
       // Run in background, don't await — progress is sent via events
       ;(async () => {
         let totalTagged = 0
+
+        // Phase 0: Rotation correction (EXIF-missing photos only)
+        if (rotationEnabled) {
+          await startRotationCheck(folderId, rotationThreshold, mainWindow, date)
+        }
 
         // Phase 1: Object detection (YOLO)
         if (detectEnabled) {

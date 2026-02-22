@@ -15,6 +15,7 @@ export interface Photo {
   height: number | null
   isBest: boolean
   createdAt: string
+  orientationCorrection: number | null
 }
 
 export interface EventGroup {
@@ -49,7 +50,7 @@ export interface PhotoTag {
 }
 
 export interface AutoTagProgress {
-  phase: 'loading_detect_model' | 'detecting' | 'loading_model' | 'classifying'
+  phase: 'checking_rotation' | 'loading_detect_model' | 'detecting' | 'loading_model' | 'classifying'
   current: number
   total: number
 }

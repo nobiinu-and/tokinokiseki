@@ -23,6 +23,8 @@ interface Props {
 
 function getProgressLabel(p: AutoTagProgress): string {
   switch (p.phase) {
+    case 'checking_rotation':
+      return `回転補正チェック中... ${p.current} / ${p.total} 枚`
     case 'loading_detect_model':
       return '物体検出モデルを読み込み中...(初回は数分かかります)'
     case 'detecting':
@@ -35,6 +37,8 @@ function getProgressLabel(p: AutoTagProgress): string {
 }
 
 export function AutoTagDialog({ folderId, date, onClose, onComplete }: Props): JSX.Element {
+  const [rotationEnabled, setRotationEnabled] = useState(true)
+  const [rotationThreshold, setRotationThreshold] = useState(0.6)
   const [detectEnabled, setDetectEnabled] = useState(true)
   const [detectThreshold, setDetectThreshold] = useState(0.5)
   const [sceneEnabled, setSceneEnabled] = useState(true)
@@ -91,7 +95,7 @@ export function AutoTagDialog({ folderId, date, onClose, onComplete }: Props): J
   }
 
   const canStart =
-    detectEnabled || (sceneEnabled && labels.some((l) => enabledLabels.has(l.label)))
+    rotationEnabled || detectEnabled || (sceneEnabled && labels.some((l) => enabledLabels.has(l.label)))
 
   const handleStart = async (): Promise<void> => {
     if (!canStart) return
@@ -119,6 +123,8 @@ export function AutoTagDialog({ folderId, date, onClose, onComplete }: Props): J
       sceneThreshold,
       detectEnabled,
       detectThreshold,
+      rotationEnabled,
+      rotationThreshold,
       date
     )
   }
@@ -154,6 +160,36 @@ export function AutoTagDialog({ folderId, date, onClose, onComplete }: Props): J
 
         {!isRunning && !result && (
           <div className="dialog-body">
+            {/* Rotation Correction Section */}
+            <div className="autotag-section">
+              <div className="autotag-section-header">
+                <h3>回転補正 (CLIP)</h3>
+                <input
+                  type="checkbox"
+                  className="autotag-toggle"
+                  checked={rotationEnabled}
+                  onChange={(e) => setRotationEnabled(e.target.checked)}
+                />
+              </div>
+              <div className={rotationEnabled ? '' : 'autotag-section-disabled'}>
+                <div className="autotag-threshold-hint" style={{ marginBottom: 8 }}>
+                  EXIF情報がない写真の向きを自動判定して補正します
+                </div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                  閾値: {Math.round(rotationThreshold * 100)}%
+                </div>
+                <input
+                  type="range"
+                  min="0.4"
+                  max="0.9"
+                  step="0.01"
+                  value={rotationThreshold}
+                  onChange={(e) => setRotationThreshold(parseFloat(e.target.value))}
+                  className="autotag-slider"
+                />
+              </div>
+            </div>
+
             {/* Object Detection Section */}
             <div className="autotag-section">
               <div className="autotag-section-header">

@@ -94,6 +94,7 @@ export function EventDetailScreen(): JSX.Element {
                   photoId={photo.id}
                   filePath={photo.filePath}
                   isBest={photo.isBest}
+                  orientationCorrection={photo.orientationCorrection}
                   onToggleBest={toggleBest}
                   onClick={() => setLightboxIndex(index)}
                   tags={photoTags[photo.id]}
@@ -118,7 +119,7 @@ export function EventDetailScreen(): JSX.Element {
           folderId={currentFolder.id}
           date={date}
           onClose={() => setShowAutoTag(false)}
-          onComplete={() => loadTags()}
+          onComplete={() => { reload(); loadTags() }}
         />
       )}
 

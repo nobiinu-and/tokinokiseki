@@ -158,8 +158,44 @@ function createThumbnailFromPath(
   fs.writeFileSync(thumbPath, jpegBuffer)
 }
 
+const CORRECTION_TO_ORIENTATION: Record<number, number> = {
+  90: 6,
+  180: 3,
+  270: 8
+}
+
+export function regenerateThumbnail(filePath: string, correctionDegrees: number): void {
+  const thumbPath = getThumbnailPath(filePath)
+  const orientation = CORRECTION_TO_ORIENTATION[correctionDegrees] || 1
+
+  if (isHeic(filePath)) {
+    const jpegCachePath = getHeicCachePath(filePath)
+    if (fs.existsSync(jpegCachePath)) {
+      createThumbnailFromPath(jpegCachePath, thumbPath, orientation)
+      return
+    }
+  }
+
+  createThumbnailFromPath(filePath, thumbPath, orientation)
+}
+
 export async function generateThumbnail(filePath: string): Promise<string> {
   const thumbPath = getThumbnailPath(filePath)
+
+  if (isHeic(filePath)) {
+    // HEIC: convert to JPEG cache first, then generate thumbnail from that.
+    // heic-convert already applies HEIF rotation (irot) during decoding,
+    // so the JPEG cache has correct pixel orientation — use orientation=1
+    // to avoid double-rotation from EXIF orientation tag.
+    const jpegCachePath = getHeicCachePath(filePath)
+
+    if (!fs.existsSync(jpegCachePath)) {
+      await convertHeicToJpeg(filePath, jpegCachePath)
+    }
+
+    createThumbnailFromPath(jpegCachePath, thumbPath, 1)
+    return thumbPath
+  }
 
   if (fs.existsSync(thumbPath)) {
     return thumbPath
@@ -171,18 +207,6 @@ export async function generateThumbnail(filePath: string): Promise<string> {
     orientation = (await exifr.orientation(filePath)) || 1
   } catch {
     // No EXIF data
-  }
-
-  if (isHeic(filePath)) {
-    // HEIC: convert to JPEG cache first, then generate thumbnail from that
-    const jpegCachePath = getHeicCachePath(filePath)
-
-    if (!fs.existsSync(jpegCachePath)) {
-      await convertHeicToJpeg(filePath, jpegCachePath)
-    }
-
-    createThumbnailFromPath(jpegCachePath, thumbPath, orientation)
-    return thumbPath
   }
 
   // Non-HEIC: direct thumbnail generation
