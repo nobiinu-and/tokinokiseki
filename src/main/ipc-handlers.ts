@@ -157,6 +157,14 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     }
   )
 
+  ipcMain.handle(
+    IPC_CHANNELS.GET_PHOTOS_BY_TAG,
+    async (_event, folderId: number, tagName: string) => {
+      await db.ensureDb()
+      return db.getPhotosByTag(folderId, tagName)
+    }
+  )
+
   // --- Duplicate detection ---
 
   ipcMain.handle(

@@ -61,6 +61,9 @@ export function EventListScreen(): JSX.Element {
         onBack={handleSettings}
         actions={
           <div className="topbar-actions-group">
+            <button className="btn btn-secondary" onClick={() => navigate('/tags')}>
+              タグ検索
+            </button>
             <button className="btn btn-secondary" onClick={() => setShowAutoTag(true)}>
               タグ付け
             </button>

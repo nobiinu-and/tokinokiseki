@@ -21,6 +21,7 @@ export const IPC_CHANNELS = {
   GET_TAGS_FOR_PHOTO: 'tags:getForPhoto',
   GET_TAG_STATS: 'tags:getStats',
   GET_PHOTO_IDS_BY_TAG: 'tags:getPhotoIds',
+  GET_PHOTOS_BY_TAG: 'tags:getPhotos',
 
   FIND_DUPLICATES: 'duplicates:find',
   DELETE_PHOTO: 'photos:delete'

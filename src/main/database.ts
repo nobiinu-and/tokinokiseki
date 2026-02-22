@@ -400,6 +400,50 @@ export function getTagStats(folderId: number): { name: string; count: number }[]
   }))
 }
 
+export function getPhotosByTag(
+  folderId: number,
+  tagName: string
+): {
+  id: number
+  folderId: number
+  filePath: string
+  fileName: string
+  takenAt: string | null
+  fileModifiedAt: string | null
+  width: number | null
+  height: number | null
+  isBest: boolean
+  createdAt: string
+  orientationCorrection: number | null
+}[] {
+  const d = getDb()
+  const result = d.exec(
+    `SELECT p.id, p.folder_id, p.file_path, p.file_name, p.taken_at,
+            p.file_modified_at, p.width, p.height, p.is_best, p.created_at,
+            p.orientation_correction
+     FROM photos p
+     JOIN photo_tags pt ON pt.photo_id = p.id
+     JOIN tags t ON t.id = pt.tag_id
+     WHERE p.folder_id = ? AND t.name = ?
+     ORDER BY COALESCE(p.taken_at, p.file_modified_at) DESC`,
+    [folderId, tagName]
+  )
+  if (result.length === 0) return []
+  return result[0].values.map((row) => ({
+    id: row[0] as number,
+    folderId: row[1] as number,
+    filePath: row[2] as string,
+    fileName: row[3] as string,
+    takenAt: row[4] as string | null,
+    fileModifiedAt: row[5] as string | null,
+    width: row[6] as number | null,
+    height: row[7] as number | null,
+    isBest: (row[8] as number) === 1,
+    createdAt: row[9] as string,
+    orientationCorrection: row[10] as number | null
+  }))
+}
+
 export function getPhotoIdsByTag(folderId: number, tagName: string): number[] {
   const d = getDb()
   const result = d.exec(

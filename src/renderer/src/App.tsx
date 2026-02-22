@@ -4,6 +4,7 @@ import { FolderSelectScreen } from './screens/FolderSelectScreen'
 import { EventListScreen } from './screens/EventListScreen'
 import { EventDetailScreen } from './screens/EventDetailScreen'
 import { SlideshowScreen } from './screens/SlideshowScreen'
+import { TagSearchScreen } from './screens/TagSearchScreen'
 
 function App(): JSX.Element {
   return (
@@ -13,6 +14,7 @@ function App(): JSX.Element {
           <Route path="/" element={<FolderSelectScreen />} />
           <Route path="/events" element={<EventListScreen />} />
           <Route path="/events/:date" element={<EventDetailScreen />} />
+          <Route path="/tags" element={<TagSearchScreen />} />
           <Route path="/slideshow" element={<SlideshowScreen />} />
           <Route path="/slideshow/:date" element={<SlideshowScreen />} />
         </Routes>
