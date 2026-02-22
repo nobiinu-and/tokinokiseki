@@ -11,6 +11,7 @@ import { startRotationCheck } from './rotation'
 import { findDuplicateGroups } from './duplicate'
 
 let isAutoTagRunning = false
+let autoTagAbort: AbortController | null = null
 
 export function registerIpcHandlers(mainWindow: BrowserWindow): void {
   ipcMain.handle(IPC_CHANNELS.SELECT_FOLDER, async () => {
@@ -97,6 +98,8 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
         throw new Error('Auto-tagging is already running')
       }
       isAutoTagRunning = true
+      autoTagAbort = new AbortController()
+      const signal = autoTagAbort.signal
       await db.ensureDb()
 
       // Run in background, don't await — progress is sent via events
@@ -105,19 +108,43 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
 
         // Phase 0: Rotation correction (EXIF-missing photos only)
         if (rotationEnabled) {
-          await startRotationCheck(folderId, rotationThreshold, mainWindow, date)
+          await startRotationCheck(folderId, rotationThreshold, mainWindow, date, signal)
+          if (signal.aborted) {
+            mainWindow.webContents.send(IPC_CHANNELS.AUTO_TAG_COMPLETE, {
+              folderId,
+              tagged: totalTagged,
+              cancelled: true
+            })
+            return
+          }
         }
 
         // Phase 1: Object detection (YOLO)
         if (detectEnabled) {
-          const r = await startDetection(folderId, detectThreshold, mainWindow, date)
+          const r = await startDetection(folderId, detectThreshold, mainWindow, date, signal)
           totalTagged += r.tagged
+          if (signal.aborted) {
+            mainWindow.webContents.send(IPC_CHANNELS.AUTO_TAG_COMPLETE, {
+              folderId,
+              tagged: totalTagged,
+              cancelled: true
+            })
+            return
+          }
         }
 
         // Phase 2: Scene classification (CLIP)
         if (labels.length > 0) {
-          const r = await startAutoTag(folderId, labels, threshold, mainWindow, date)
+          const r = await startAutoTag(folderId, labels, threshold, mainWindow, date, signal)
           totalTagged += r.tagged
+          if (signal.aborted) {
+            mainWindow.webContents.send(IPC_CHANNELS.AUTO_TAG_COMPLETE, {
+              folderId,
+              tagged: totalTagged,
+              cancelled: true
+            })
+            return
+          }
         }
 
         mainWindow.webContents.send(IPC_CHANNELS.AUTO_TAG_COMPLETE, {
@@ -135,9 +162,14 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
         })
         .finally(() => {
           isAutoTagRunning = false
+          autoTagAbort = null
         })
     }
   )
+
+  ipcMain.handle(IPC_CHANNELS.CANCEL_AUTO_TAG, async () => {
+    autoTagAbort?.abort()
+  })
 
   ipcMain.handle(IPC_CHANNELS.GET_TAGS_FOR_PHOTO, async (_event, photoId: number) => {
     await db.ensureDb()

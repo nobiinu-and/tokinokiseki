@@ -51,7 +51,7 @@ export function AutoTagDialog({ folderId, date, onClose, onComplete }: Props): J
   const [sceneThreshold, setSceneThreshold] = useState(0.5)
   const [isRunning, setIsRunning] = useState(false)
   const [progress, setProgress] = useState<AutoTagProgress | null>(null)
-  const [result, setResult] = useState<{ tagged: number; error?: string } | null>(null)
+  const [result, setResult] = useState<{ tagged: number; error?: string; cancelled?: boolean } | null>(null)
   const cleanupRef = useRef<(() => void)[]>([])
 
   useEffect(() => {
@@ -111,8 +111,8 @@ export function AutoTagDialog({ folderId, date, onClose, onComplete }: Props): J
       setProgress(p as AutoTagProgress)
     })
     const unsubComplete = window.api.onAutoTagComplete((r) => {
-      const res = r as { folderId: number; tagged: number; error?: string }
-      setResult({ tagged: res.tagged, error: res.error })
+      const res = r as { folderId: number; tagged: number; error?: string; cancelled?: boolean }
+      setResult({ tagged: res.tagged, error: res.error, cancelled: res.cancelled })
       setIsRunning(false)
     })
     cleanupRef.current.push(unsubProgress, unsubComplete)
@@ -135,6 +135,10 @@ export function AutoTagDialog({ folderId, date, onClose, onComplete }: Props): J
       onComplete()
     }
     onClose()
+  }
+
+  const handleCancel = async (): Promise<void> => {
+    await window.api.cancelAutoTag()
   }
 
   const handleKeyDown = (e: React.KeyboardEvent): void => {
@@ -334,6 +338,10 @@ export function AutoTagDialog({ folderId, date, onClose, onComplete }: Props): J
             <div className="autotag-result">
               {result.error ? (
                 <p className="autotag-result-error">エラー: {result.error}</p>
+              ) : result.cancelled ? (
+                <p className="autotag-result-success">
+                  中断しました（{result.tagged} 枚処理済み）
+                </p>
               ) : (
                 <p className="autotag-result-success">
                   完了！ {result.tagged} 枚の写真にタグを付けました
@@ -353,6 +361,11 @@ export function AutoTagDialog({ folderId, date, onClose, onComplete }: Props): J
                 タグ付け開始
               </button>
             </>
+          )}
+          {isRunning && (
+            <button className="btn btn-ghost" onClick={handleCancel}>
+              中止
+            </button>
           )}
           {result && (
             <button className="btn btn-primary" onClick={handleClose}>

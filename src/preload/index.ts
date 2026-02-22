@@ -49,6 +49,8 @@ contextBridge.exposeInMainWorld('api', {
   startAutoTag: (folderId: number, labels: { label: string; display: string }[], threshold: number, detectEnabled: boolean, detectThreshold: number, rotationEnabled: boolean, rotationThreshold: number, date?: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.START_AUTO_TAG, folderId, labels, threshold, detectEnabled, detectThreshold, rotationEnabled, rotationThreshold, date),
 
+  cancelAutoTag: () => ipcRenderer.invoke(IPC_CHANNELS.CANCEL_AUTO_TAG),
+
   onAutoTagProgress: (callback: (progress: unknown) => void) => {
     const handler = (_event: unknown, progress: unknown): void => callback(progress)
     ipcRenderer.on(IPC_CHANNELS.AUTO_TAG_PROGRESS, handler as never)

@@ -16,6 +16,7 @@ export const IPC_CHANNELS = {
   GET_PHOTO_FILE_URL: 'photo:getFileUrl',
 
   START_AUTO_TAG: 'tags:startAutoTag',
+  CANCEL_AUTO_TAG: 'tags:cancel',
   AUTO_TAG_PROGRESS: 'tags:progress',
   AUTO_TAG_COMPLETE: 'tags:complete',
   GET_TAGS_FOR_PHOTO: 'tags:getForPhoto',

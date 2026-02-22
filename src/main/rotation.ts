@@ -11,7 +11,8 @@ export async function startRotationCheck(
   folderId: number,
   threshold: number,
   mainWindow: BrowserWindow,
-  date?: string
+  date?: string,
+  signal?: AbortSignal
 ): Promise<{ checked: number; corrected: number }> {
   await db.ensureDb()
   const photos = db.getPhotosNeedingRotationCheck(folderId, date)
@@ -91,6 +92,12 @@ export async function startRotationCheck(
   let corrected = 0
 
   for (const photo of needsCheck) {
+    if (signal?.aborted) {
+      db.saveDatabase()
+      worker.terminate()
+      return { checked: total, corrected }
+    }
+
     // Use thumbnail if available for faster processing
     const thumbPath = getThumbnailPath(photo.filePath)
     const imagePath = fs.existsSync(thumbPath) ? thumbPath : photo.filePath

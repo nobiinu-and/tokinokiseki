@@ -17,7 +17,8 @@ export async function startAutoTag(
   labels: LabelDef[],
   threshold: number,
   mainWindow: BrowserWindow,
-  date?: string
+  date?: string,
+  signal?: AbortSignal
 ): Promise<{ tagged: number }> {
   await db.ensureDb()
   const photos = date
@@ -86,6 +87,12 @@ export async function startAutoTag(
   let tagged = 0
 
   for (const photo of photos) {
+    if (signal?.aborted) {
+      db.saveDatabase()
+      worker.terminate()
+      return { tagged }
+    }
+
     // Use thumbnail if available for faster processing
     const thumbPath = getThumbnailPath(photo.filePath)
     const imagePath = fs.existsSync(thumbPath) ? thumbPath : photo.filePath

@@ -75,7 +75,8 @@ export async function startDetection(
   folderId: number,
   threshold: number,
   mainWindow: BrowserWindow,
-  date?: string
+  date?: string,
+  signal?: AbortSignal
 ): Promise<{ tagged: number }> {
   await db.ensureDb()
   const photos = date
@@ -133,6 +134,12 @@ export async function startDetection(
   let tagged = 0
 
   for (const photo of photos) {
+    if (signal?.aborted) {
+      db.saveDatabase()
+      worker.terminate()
+      return { tagged }
+    }
+
     const thumbPath = getThumbnailPath(photo.filePath)
     const imagePath = fs.existsSync(thumbPath) ? thumbPath : photo.filePath
 
