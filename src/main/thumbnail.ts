@@ -170,40 +170,26 @@ function applyOrientationToNativeImage(
   }
 }
 
-// Perf counters for thumbnail sub-operations (reset externally)
-export const thumbPerf = { load: 0, resize: 0, encode: 0, write: 0, heic: 0, heicCount: 0, count: 0 }
-
 function createThumbnailFromPath(
   sourcePath: string,
   thumbPath: string,
   orientation: number = 1
 ): void {
-  let t = performance.now()
   const image = nativeImage.createFromPath(sourcePath)
   if (image.isEmpty()) {
     throw new Error(`Failed to load image: ${sourcePath}`)
   }
-  thumbPerf.load += performance.now() - t
 
   const size = image.getSize()
   const scale = Math.min(THUMB_SIZE / size.width, THUMB_SIZE / size.height, 1)
   const newWidth = Math.round(size.width * scale)
   const newHeight = Math.round(size.height * scale)
 
-  t = performance.now()
   const resized = image.resize({ width: newWidth, height: newHeight, quality: 'good' })
   const corrected = applyOrientationToNativeImage(resized, orientation)
-  thumbPerf.resize += performance.now() - t
 
-  t = performance.now()
   const jpegBuffer = corrected.toJPEG(80)
-  thumbPerf.encode += performance.now() - t
-
-  t = performance.now()
   fs.writeFileSync(thumbPath, jpegBuffer)
-  thumbPerf.write += performance.now() - t
-
-  thumbPerf.count++
 }
 
 const CORRECTION_TO_ORIENTATION: Record<number, number> = {
@@ -237,10 +223,7 @@ export async function ensureHeicCache(filePath: string): Promise<boolean> {
   const jpegCachePath = getHeicCachePath(filePath)
   if (fs.existsSync(jpegCachePath)) return false
 
-  const ht = performance.now()
   await convertHeicToJpeg(filePath, jpegCachePath)
-  thumbPerf.heic += performance.now() - ht
-  thumbPerf.heicCount++
   return true
 }
 

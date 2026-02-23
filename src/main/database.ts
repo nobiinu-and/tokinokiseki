@@ -167,8 +167,8 @@ export function saveDatabase(): void {
 
 // --- Timeline helpers ---
 
-function inClause(ids: number[]): string {
-  return ids.map((id) => Number(id)).join(',')
+function inPlaceholders(ids: number[]): { ph: string; params: number[] } {
+  return { ph: ids.map(() => '?').join(','), params: ids }
 }
 
 export function resolveTimelineFolderIds(timelineId: number): number[] {
@@ -310,21 +310,22 @@ export function getDateSummary(
 }[] {
   if (folderIds.length === 0) return []
   const d = getDb()
-  const ids = inClause(folderIds)
+  const { ph, params } = inPlaceholders(folderIds)
   const result = d.exec(
     `SELECT
        date(COALESCE(taken_at, file_modified_at)) as event_date,
        COUNT(*) as photo_count,
        MIN(id) as representative_id,
        (SELECT file_path FROM photos p2
-        WHERE p2.folder_id IN (${ids})
+        WHERE p2.folder_id IN (${ph})
         AND date(COALESCE(p2.taken_at, p2.file_modified_at)) = date(COALESCE(photos.taken_at, photos.file_modified_at))
         ORDER BY p2.id LIMIT 1) as representative_path,
        MAX(is_best) as has_best
      FROM photos
-     WHERE folder_id IN (${ids})
+     WHERE folder_id IN (${ph})
      GROUP BY event_date
-     ORDER BY event_date DESC`
+     ORDER BY event_date DESC`,
+    [...params, ...params]
   )
   if (result.length === 0) return []
   return result[0].values.map((row) => ({
@@ -354,14 +355,14 @@ export function getPhotosByDate(
 }[] {
   if (folderIds.length === 0) return []
   const d = getDb()
-  const ids = inClause(folderIds)
+  const { ph, params } = inPlaceholders(folderIds)
   const result = d.exec(
     `SELECT id, folder_id, file_path, file_name, taken_at, file_modified_at,
             width, height, is_best, created_at, orientation_correction
      FROM photos
-     WHERE folder_id IN (${ids}) AND date(COALESCE(taken_at, file_modified_at)) = ?
+     WHERE folder_id IN (${ph}) AND date(COALESCE(taken_at, file_modified_at)) = ?
      ORDER BY COALESCE(taken_at, file_modified_at) ASC`,
-    [date]
+    [...params, date]
   )
   if (result.length === 0) return []
   return result[0].values.map((row) => ({
@@ -395,12 +396,13 @@ export function getBestPhotos(
 ): { id: number; filePath: string; fileName: string; takenAt: string | null }[] {
   if (folderIds.length === 0) return []
   const d = getDb()
-  const ids = inClause(folderIds)
+  const { ph, params } = inPlaceholders(folderIds)
   const result = d.exec(
     `SELECT id, file_path, file_name, taken_at
      FROM photos
-     WHERE folder_id IN (${ids}) AND is_best = 1
-     ORDER BY COALESCE(taken_at, file_modified_at) DESC`
+     WHERE folder_id IN (${ph}) AND is_best = 1
+     ORDER BY COALESCE(taken_at, file_modified_at) DESC`,
+    params
   )
   if (result.length === 0) return []
   return result[0].values.map((row) => ({
@@ -417,13 +419,13 @@ export function getBestPhotosForDate(
 ): { id: number; filePath: string; fileName: string; takenAt: string | null }[] {
   if (folderIds.length === 0) return []
   const d = getDb()
-  const ids = inClause(folderIds)
+  const { ph, params } = inPlaceholders(folderIds)
   const result = d.exec(
     `SELECT id, file_path, file_name, taken_at
      FROM photos
-     WHERE folder_id IN (${ids}) AND is_best = 1 AND date(COALESCE(taken_at, file_modified_at)) = ?
+     WHERE folder_id IN (${ph}) AND is_best = 1 AND date(COALESCE(taken_at, file_modified_at)) = ?
      ORDER BY COALESCE(taken_at, file_modified_at) ASC`,
-    [date]
+    [...params, date]
   )
   if (result.length === 0) return []
   return result[0].values.map((row) => ({
@@ -506,15 +508,16 @@ export function getTagsForPhoto(photoId: number): { name: string; confidence: nu
 export function getTagStats(folderIds: number[]): { name: string; count: number }[] {
   if (folderIds.length === 0) return []
   const d = getDb()
-  const ids = inClause(folderIds)
+  const { ph, params } = inPlaceholders(folderIds)
   const result = d.exec(
     `SELECT t.name, COUNT(*) as cnt
      FROM photo_tags pt
      JOIN tags t ON t.id = pt.tag_id
      JOIN photos p ON p.id = pt.photo_id
-     WHERE p.folder_id IN (${ids})
+     WHERE p.folder_id IN (${ph})
      GROUP BY t.name
-     ORDER BY cnt DESC`
+     ORDER BY cnt DESC`,
+    params
   )
   if (result.length === 0) return []
   return result[0].values.map((row) => ({
@@ -541,7 +544,7 @@ export function getPhotosByTag(
 }[] {
   if (folderIds.length === 0) return []
   const d = getDb()
-  const ids = inClause(folderIds)
+  const { ph, params } = inPlaceholders(folderIds)
   const result = d.exec(
     `SELECT p.id, p.folder_id, p.file_path, p.file_name, p.taken_at,
             p.file_modified_at, p.width, p.height, p.is_best, p.created_at,
@@ -549,9 +552,9 @@ export function getPhotosByTag(
      FROM photos p
      JOIN photo_tags pt ON pt.photo_id = p.id
      JOIN tags t ON t.id = pt.tag_id
-     WHERE p.folder_id IN (${ids}) AND t.name = ?
+     WHERE p.folder_id IN (${ph}) AND t.name = ?
      ORDER BY COALESCE(p.taken_at, p.file_modified_at) DESC`,
-    [tagName]
+    [...params, tagName]
   )
   if (result.length === 0) return []
   return result[0].values.map((row) => ({
@@ -572,15 +575,15 @@ export function getPhotosByTag(
 export function getPhotoIdsByTag(folderIds: number[], tagName: string): number[] {
   if (folderIds.length === 0) return []
   const d = getDb()
-  const ids = inClause(folderIds)
+  const { ph, params } = inPlaceholders(folderIds)
   const result = d.exec(
     `SELECT pt.photo_id
      FROM photo_tags pt
      JOIN tags t ON t.id = pt.tag_id
      JOIN photos p ON p.id = pt.photo_id
-     WHERE p.folder_id IN (${ids}) AND t.name = ?
+     WHERE p.folder_id IN (${ph}) AND t.name = ?
      ORDER BY pt.confidence DESC`,
-    [tagName]
+    [...params, tagName]
   )
   if (result.length === 0) return []
   return result[0].values.map((row) => row[0] as number)
@@ -597,11 +600,12 @@ export function deletePhotoTagByName(photoId: number, tagName: string): void {
 export function clearPhotoTags(folderIds: number[]): void {
   if (folderIds.length === 0) return
   const d = getDb()
-  const ids = inClause(folderIds)
+  const { ph, params } = inPlaceholders(folderIds)
   d.run(
     `DELETE FROM photo_tags WHERE photo_id IN (
-       SELECT id FROM photos WHERE folder_id IN (${ids})
-     )`
+       SELECT id FROM photos WHERE folder_id IN (${ph})
+     )`,
+    params
   )
   saveDatabase()
 }
@@ -611,9 +615,10 @@ export function getAllPhotosInFolders(
 ): { id: number; filePath: string }[] {
   if (folderIds.length === 0) return []
   const d = getDb()
-  const ids = inClause(folderIds)
+  const { ph, params } = inPlaceholders(folderIds)
   const result = d.exec(
-    `SELECT id, file_path FROM photos WHERE folder_id IN (${ids}) ORDER BY id`
+    `SELECT id, file_path FROM photos WHERE folder_id IN (${ph}) ORDER BY id`,
+    params
   )
   if (result.length === 0) return []
   return result[0].values.map((row) => ({
@@ -635,17 +640,17 @@ export function getPhotosNeedingRotationCheck(
 ): { id: number; filePath: string }[] {
   if (folderIds.length === 0) return []
   const d = getDb()
-  const ids = inClause(folderIds)
+  const { ph, params: folderParams } = inPlaceholders(folderIds)
   const query = date
     ? `SELECT id, file_path FROM photos
-       WHERE folder_id IN (${ids}) AND orientation_correction IS NULL
+       WHERE folder_id IN (${ph}) AND orientation_correction IS NULL
          AND date(COALESCE(taken_at, file_modified_at)) = ?
        ORDER BY id`
     : `SELECT id, file_path FROM photos
-       WHERE folder_id IN (${ids}) AND orientation_correction IS NULL
+       WHERE folder_id IN (${ph}) AND orientation_correction IS NULL
        ORDER BY id`
-  const params = date ? [date] : []
-  const result = d.exec(query, params.length > 0 ? params : undefined)
+  const bindParams = date ? [...folderParams, date] : folderParams
+  const result = d.exec(query, bindParams)
   if (result.length === 0) return []
   return result[0].values.map((row) => ({
     id: row[0] as number,
