@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import type { EventSummary } from '../types/models'
+import type { DateCardSummary } from '../types/models'
 
-interface EventWithGroup extends EventSummary {
-  isEvent: boolean
+export interface DateCardWithGroup extends DateCardSummary {
+  isLargeCard: boolean
   consecutiveGroupId: number | null
 }
 
@@ -12,59 +12,59 @@ interface YearMonthGroup {
   count: number
 }
 
-interface UseEventsResult {
-  events: EventWithGroup[]
+interface UseTimelineResult {
+  dateCards: DateCardWithGroup[]
   groups: YearMonthGroup[]
   groupCounts: number[]
   loading: boolean
   refresh: () => void
 }
 
-function computeConsecutiveGroups(summaries: EventSummary[]): EventWithGroup[] {
+function computeConsecutiveGroups(summaries: DateCardSummary[]): DateCardWithGroup[] {
   if (summaries.length === 0) return []
 
-  const events: EventWithGroup[] = summaries.map((s) => ({
+  const dateCards: DateCardWithGroup[] = summaries.map((s) => ({
     ...s,
-    isEvent: s.photoCount >= 3,
+    isLargeCard: s.photoCount >= 3,
     consecutiveGroupId: null
   }))
 
   // Sorted descending by date already from DB
   let groupId = 0
 
-  for (let i = 0; i < events.length; i++) {
-    if (!events[i].isEvent) continue
+  for (let i = 0; i < dateCards.length; i++) {
+    if (!dateCards[i].isLargeCard) continue
 
-    if (events[i].consecutiveGroupId === null) {
-      events[i].consecutiveGroupId = groupId
+    if (dateCards[i].consecutiveGroupId === null) {
+      dateCards[i].consecutiveGroupId = groupId
 
       // Look at subsequent items (next in list = earlier date)
-      for (let j = i + 1; j < events.length; j++) {
-        if (!events[j].isEvent) {
-          // Check if this non-event is just a 1-day gap between events
-          if (j + 1 < events.length && events[j + 1].isEvent) {
-            const dateBefore = new Date(events[i].date)
-            const dateAfter = new Date(events[j + 1].date)
+      for (let j = i + 1; j < dateCards.length; j++) {
+        if (!dateCards[j].isLargeCard) {
+          // Check if this non-large-card is just a 1-day gap between large cards
+          if (j + 1 < dateCards.length && dateCards[j + 1].isLargeCard) {
+            const dateBefore = new Date(dateCards[i].date)
+            const dateAfter = new Date(dateCards[j + 1].date)
             const daysDiff = Math.abs(
               (dateBefore.getTime() - dateAfter.getTime()) / (1000 * 60 * 60 * 24)
             )
             if (daysDiff <= 3) {
               // Include the gap day in the group
-              events[j].consecutiveGroupId = groupId
+              dateCards[j].consecutiveGroupId = groupId
               continue
             }
           }
           break
         }
 
-        const prevDate = new Date(events[j - 1].date)
-        const currDate = new Date(events[j].date)
+        const prevDate = new Date(dateCards[j - 1].date)
+        const currDate = new Date(dateCards[j].date)
         const daysDiff = Math.abs(
           (prevDate.getTime() - currDate.getTime()) / (1000 * 60 * 60 * 24)
         )
 
         if (daysDiff <= 2) {
-          events[j].consecutiveGroupId = groupId
+          dateCards[j].consecutiveGroupId = groupId
         } else {
           break
         }
@@ -73,19 +73,19 @@ function computeConsecutiveGroups(summaries: EventSummary[]): EventWithGroup[] {
     }
   }
 
-  return events
+  return dateCards
 }
 
-function computeYearMonthGroups(events: EventWithGroup[]): YearMonthGroup[] {
-  if (events.length === 0) return []
+function computeYearMonthGroups(dateCards: DateCardWithGroup[]): YearMonthGroup[] {
+  if (dateCards.length === 0) return []
 
   const groups: YearMonthGroup[] = []
   let currentYear = -1
   let currentMonth = -1
   let currentCount = 0
 
-  for (const event of events) {
-    const d = new Date(event.date)
+  for (const card of dateCards) {
+    const d = new Date(card.date)
     const y = d.getFullYear()
     const m = d.getMonth() + 1
 
@@ -109,8 +109,8 @@ function computeYearMonthGroups(events: EventWithGroup[]): YearMonthGroup[] {
   return groups
 }
 
-export function useEvents(folderId: number | null): UseEventsResult {
-  const [events, setEvents] = useState<EventWithGroup[]>([])
+export function useTimeline(folderId: number | null): UseTimelineResult {
+  const [dateCards, setDateCards] = useState<DateCardWithGroup[]>([])
   const [groups, setGroups] = useState<YearMonthGroup[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -118,10 +118,10 @@ export function useEvents(folderId: number | null): UseEventsResult {
     if (folderId === null) return
     setLoading(true)
     window.api
-      .getEventSummary(folderId)
+      .getDateSummary(folderId)
       .then((summaries) => {
         const computed = computeConsecutiveGroups(summaries)
-        setEvents(computed)
+        setDateCards(computed)
         setGroups(computeYearMonthGroups(computed))
       })
       .finally(() => setLoading(false))
@@ -131,5 +131,5 @@ export function useEvents(folderId: number | null): UseEventsResult {
     refresh()
   }, [refresh])
 
-  return { events, groups, groupCounts: groups.map((g) => g.count), loading, refresh }
+  return { dateCards, groups, groupCounts: groups.map((g) => g.count), loading, refresh }
 }

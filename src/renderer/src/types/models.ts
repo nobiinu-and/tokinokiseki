@@ -18,17 +18,7 @@ export interface Photo {
   orientationCorrection: number | null
 }
 
-export interface EventGroup {
-  date: string
-  displayDate: string
-  photoCount: number
-  representativeThumbPath: string
-  photos: Photo[]
-  isEvent: boolean
-  consecutiveGroupId: number | null
-}
-
-export interface EventSummary {
+export interface DateCardSummary {
   date: string
   photoCount: number
   representativePhotoId: number

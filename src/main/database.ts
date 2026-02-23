@@ -190,7 +190,7 @@ export function insertPhoto(photo: {
   return result[0].values[0][0] as number
 }
 
-export function getEventSummary(
+export function getDateSummary(
   folderId: number
 ): {
   date: string

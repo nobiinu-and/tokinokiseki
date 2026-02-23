@@ -1,8 +1,8 @@
 import { HashRouter, Routes, Route } from 'react-router-dom'
 import { AppProvider } from './context/AppContext'
 import { FolderSelectScreen } from './screens/FolderSelectScreen'
-import { EventListScreen } from './screens/EventListScreen'
-import { EventDetailScreen } from './screens/EventDetailScreen'
+import { TimelineScreen } from './screens/TimelineScreen'
+import { DateDetailScreen } from './screens/DateDetailScreen'
 import { SlideshowScreen } from './screens/SlideshowScreen'
 import { TagSearchScreen } from './screens/TagSearchScreen'
 
@@ -12,8 +12,8 @@ function App(): JSX.Element {
       <HashRouter>
         <Routes>
           <Route path="/" element={<FolderSelectScreen />} />
-          <Route path="/events" element={<EventListScreen />} />
-          <Route path="/events/:date" element={<EventDetailScreen />} />
+          <Route path="/timeline" element={<TimelineScreen />} />
+          <Route path="/timeline/:date" element={<DateDetailScreen />} />
           <Route path="/tags" element={<TagSearchScreen />} />
           <Route path="/slideshow" element={<SlideshowScreen />} />
           <Route path="/slideshow/:date" element={<SlideshowScreen />} />

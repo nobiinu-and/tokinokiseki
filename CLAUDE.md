@@ -36,9 +36,9 @@ Preload (src/preload/index.ts)
 
 Renderer (src/renderer/src/)
 ├── App.tsx           — HashRouter（4ルート）
-├── screens/          — FolderSelect, EventList, EventDetail, Slideshow
-├── components/       — EventCard, PhotoThumbnail, Lightbox, TopBar, ScanProgress
-├── hooks/            — useEvents, usePhotos, useScan, useSlideshow
+├── screens/          — FolderSelect, Timeline, DateDetail, Slideshow
+├── components/       — DateCard, PhotoThumbnail, Lightbox, TopBar, ScanProgress
+├── hooks/            — useTimeline, usePhotos, useScan, useSlideshow
 ├── context/          — AppContext（currentFolder, isScanning）
 └── types/            — IPCチャンネル名、モデル定義、electron.d.ts
 ```
@@ -75,9 +75,9 @@ Worker は `electron.vite.config.ts` で別エントリポイントとして定�
 
 ファイルパス → MD5ハッシュ → `userData/thumbnails/{hash}.jpg`。長辺300px、JPEG品質80。
 
-### イベントグルーピング
+### 日付カードグルーピング
 
-日付単位で写真をグルーピング。3枚以上の日は「イベント」として大きく表示、1〜2枚はコンパクト表示。2日以内の間隔で連続するイベント日は「旅行」として視覚的にグループ化（`useEvents.ts` の `computeConsecutiveGroups` 参照）。
+日付単位で写真をグルーピング。3枚以上の日は大きなカード（`isLargeCard`）で表示、1〜2枚はコンパクト表示。2日以内の間隔で連続する大カード日は「旅行」として視覚的にグループ化（`useTimeline.ts` の `computeConsecutiveGroups` 参照）。
 
 ## 設定上の注意
 

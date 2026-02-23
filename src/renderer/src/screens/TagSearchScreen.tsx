@@ -163,7 +163,7 @@ export function TagSearchScreen(): JSX.Element {
     <div className="screen tag-search-screen">
       <TopBar
         title="タグ検索"
-        onBack={() => navigate('/events')}
+        onBack={() => navigate('/timeline')}
       />
 
       {/* Tag chips */}

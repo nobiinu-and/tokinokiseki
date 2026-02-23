@@ -2,8 +2,8 @@ import { useState, useCallback, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { GroupedVirtuoso, type GroupedVirtuosoHandle, type ListRange } from 'react-virtuoso'
 import { useApp } from '../context/AppContext'
-import { useEvents } from '../hooks/useEvents'
-import { EventCard } from '../components/EventCard'
+import { useTimeline } from '../hooks/useTimeline'
+import { DateCard } from '../components/DateCard'
 import { TopBar } from '../components/TopBar'
 import { AutoTagDialog } from '../components/AutoTagDialog'
 import { JumpBar } from '../components/JumpBar'
@@ -11,10 +11,10 @@ import { JumpBar } from '../components/JumpBar'
 // Persist scroll position across navigations (module-level, survives remounts)
 let savedScrollIndex = 0
 
-export function EventListScreen(): JSX.Element {
+export function TimelineScreen(): JSX.Element {
   const navigate = useNavigate()
   const { currentFolder } = useApp()
-  const { events, groups, groupCounts, loading } = useEvents(currentFolder?.id ?? null)
+  const { dateCards, groups, groupCounts, loading } = useTimeline(currentFolder?.id ?? null)
   const [showAutoTag, setShowAutoTag] = useState(false)
   const virtuosoRef = useRef<GroupedVirtuosoHandle>(null)
 
@@ -55,9 +55,9 @@ export function EventListScreen(): JSX.Element {
   }
 
   return (
-    <div className="screen event-list-screen">
+    <div className="screen timeline-screen">
       <TopBar
-        title="イベント一覧"
+        title="タイムライン"
         onBack={handleSettings}
         actions={
           <div className="topbar-actions-group">
@@ -78,7 +78,7 @@ export function EventListScreen(): JSX.Element {
         <div className="screen-center">
           <p>読み込み中...</p>
         </div>
-      ) : events.length === 0 ? (
+      ) : dateCards.length === 0 ? (
         <div className="screen-center">
           <p>写真が見つかりませんでした</p>
           <button className="btn btn-primary" onClick={handleSettings}>
@@ -86,52 +86,52 @@ export function EventListScreen(): JSX.Element {
           </button>
         </div>
       ) : (
-        <div className="event-list-container">
+        <div className="timeline-container">
           <GroupedVirtuoso
             ref={virtuosoRef}
             groupCounts={groupCounts}
             initialTopMostItemIndex={savedScrollIndex}
             rangeChanged={handleRangeChanged}
             groupContent={(index) => (
-              <div className="event-list-section-header">
+              <div className="timeline-section-header">
                 {groups[index]?.label}
               </div>
             )}
             itemContent={(index) => {
-              const event = events[index]
-              if (!event) return null
+              const card = dateCards[index]
+              if (!card) return null
 
-              const prevEvent = index > 0 ? events[index - 1] : null
-              const nextEvent = index < events.length - 1 ? events[index + 1] : null
+              const prevCard = index > 0 ? dateCards[index - 1] : null
+              const nextCard = index < dateCards.length - 1 ? dateCards[index + 1] : null
 
               const isGroupStart =
-                event.consecutiveGroupId !== null &&
-                (prevEvent === null ||
-                  prevEvent.consecutiveGroupId !== event.consecutiveGroupId)
+                card.consecutiveGroupId !== null &&
+                (prevCard === null ||
+                  prevCard.consecutiveGroupId !== card.consecutiveGroupId)
               const isGroupEnd =
-                event.consecutiveGroupId !== null &&
-                (nextEvent === null ||
-                  nextEvent.consecutiveGroupId !== event.consecutiveGroupId)
-              const isInGroup = event.consecutiveGroupId !== null
+                card.consecutiveGroupId !== null &&
+                (nextCard === null ||
+                  nextCard.consecutiveGroupId !== card.consecutiveGroupId)
+              const isInGroup = card.consecutiveGroupId !== null
 
               return (
                 <div
                   className={[
-                    'event-list-item',
-                    isInGroup ? 'event-group-member' : '',
-                    isGroupStart ? 'event-group-start' : '',
-                    isGroupEnd ? 'event-group-end' : ''
+                    'timeline-item',
+                    isInGroup ? 'date-group-member' : '',
+                    isGroupStart ? 'date-group-start' : '',
+                    isGroupEnd ? 'date-group-end' : ''
                   ]
                     .filter(Boolean)
                     .join(' ')}
                 >
-                  <EventCard
-                    date={event.date}
-                    photoCount={event.photoCount}
-                    thumbnailPath={event.thumbnailPath}
-                    isEvent={event.isEvent}
-                    hasBest={event.hasBest}
-                    onClick={() => navigate(`/events/${event.date}`)}
+                  <DateCard
+                    date={card.date}
+                    photoCount={card.photoCount}
+                    thumbnailPath={card.thumbnailPath}
+                    isLargeCard={card.isLargeCard}
+                    hasBest={card.hasBest}
+                    onClick={() => navigate(`/timeline/${card.date}`)}
                   />
                 </div>
               )
@@ -148,7 +148,7 @@ export function EventListScreen(): JSX.Element {
           folderId={currentFolder.id}
           onClose={() => setShowAutoTag(false)}
           onComplete={() => {
-            // Tags have been applied, no need to reload events
+            // Tags have been applied, no need to reload
           }}
         />
       )}

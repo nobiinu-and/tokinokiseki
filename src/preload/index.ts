@@ -24,8 +24,8 @@ contextBridge.exposeInMainWorld('api', {
     }
   },
 
-  getEventSummary: (folderId: number) =>
-    ipcRenderer.invoke(IPC_CHANNELS.GET_EVENT_SUMMARY, folderId),
+  getDateSummary: (folderId: number) =>
+    ipcRenderer.invoke(IPC_CHANNELS.GET_DATE_SUMMARY, folderId),
 
   getPhotosByDate: (folderId: number, date: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.GET_PHOTOS_BY_DATE, folderId, date),
