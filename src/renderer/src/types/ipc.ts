@@ -7,7 +7,7 @@ export const IPC_CHANNELS = {
   SCAN_COMPLETE: 'scan:complete',
 
   GET_PHOTOS_BY_DATE: 'photos:getByDate',
-  GET_EVENT_SUMMARY: 'photos:getEventSummary',
+  GET_DATE_SUMMARY: 'photos:getEventSummary',
   TOGGLE_BEST: 'photos:toggleBest',
   GET_BEST_PHOTOS: 'photos:getBest',
   GET_BEST_PHOTOS_FOR_DATE: 'photos:getBestForDate',

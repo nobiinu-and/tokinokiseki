@@ -32,9 +32,9 @@ export function SlideshowScreen(): JSX.Element {
 
   const onExit = (): void => {
     if (date) {
-      navigate(`/events/${date}`)
+      navigate(`/timeline/${date}`)
     } else {
-      navigate('/events')
+      navigate('/timeline')
     }
   }
 

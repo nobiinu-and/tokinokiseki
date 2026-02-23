@@ -21,7 +21,7 @@ export function FolderSelectScreen(): JSX.Element {
       const cameFromBack = (location.state as { fromBack?: boolean })?.fromBack
       if (folders.length > 0 && !cameFromBack) {
         setCurrentFolder(folders[0])
-        navigate('/events')
+        navigate('/timeline')
       }
     })
   }, [])
@@ -43,18 +43,18 @@ export function FolderSelectScreen(): JSX.Element {
     if (folders.length > 0) {
       setCurrentFolder(folders[0])
     }
-    navigate('/events')
+    navigate('/timeline')
   }
 
   const handleRescan = async (folder: Folder): Promise<void> => {
     setCurrentFolder(folder)
     await startScan(folder.path)
-    navigate('/events')
+    navigate('/timeline')
   }
 
   const handleViewEvents = (folder: Folder): void => {
     setCurrentFolder(folder)
-    navigate('/events')
+    navigate('/timeline')
   }
 
   if (loading) {

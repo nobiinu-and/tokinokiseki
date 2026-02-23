@@ -20,7 +20,7 @@ function formatDate(dateStr: string): string {
   })
 }
 
-export function EventDetailScreen(): JSX.Element {
+export function DateDetailScreen(): JSX.Element {
   const navigate = useNavigate()
   const { date } = useParams<{ date: string }>()
   const { currentFolder } = useApp()
@@ -94,10 +94,10 @@ export function EventDetailScreen(): JSX.Element {
   const bestCount = photos.filter((p) => p.isBest).length
 
   return (
-    <div className="screen event-detail-screen">
+    <div className="screen date-detail-screen">
       <TopBar
         title={`${formatDate(date)} (${photos.length}枚)`}
-        onBack={() => navigate('/events')}
+        onBack={() => navigate('/timeline')}
         actions={
           <div className="topbar-actions-group">
             <button className="btn btn-secondary" onClick={() => setShowDuplicates(true)}>

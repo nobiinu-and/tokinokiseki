@@ -32,9 +32,9 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     await scanFolder(folderPath, mainWindow)
   })
 
-  ipcMain.handle(IPC_CHANNELS.GET_EVENT_SUMMARY, async (_event, folderId: number) => {
+  ipcMain.handle(IPC_CHANNELS.GET_DATE_SUMMARY, async (_event, folderId: number) => {
     await db.ensureDb()
-    const summaries = db.getEventSummary(folderId)
+    const summaries = db.getDateSummary(folderId)
     return summaries.map((s) => ({
       ...s,
       thumbnailPath: pathToFileURL(getThumbnailPath(s.representativeFilePath)).toString()

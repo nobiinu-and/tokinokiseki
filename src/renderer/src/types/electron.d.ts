@@ -1,4 +1,4 @@
-import type { Folder, Photo, EventSummary, ScanProgress, PhotoTag, AutoTagProgress, TagLabelDef, DuplicateGroup } from './models'
+import type { Folder, Photo, DateCardSummary, ScanProgress, PhotoTag, AutoTagProgress, TagLabelDef, DuplicateGroup } from './models'
 
 export interface ElectronAPI {
   selectFolder(): Promise<string | null>
@@ -6,7 +6,7 @@ export interface ElectronAPI {
   startScan(folderPath: string): Promise<void>
   onScanProgress(callback: (progress: ScanProgress) => void): () => void
   onScanComplete(callback: () => void): () => void
-  getEventSummary(folderId: number): Promise<EventSummary[]>
+  getDateSummary(folderId: number): Promise<DateCardSummary[]>
   getPhotosByDate(folderId: number, date: string): Promise<Photo[]>
   toggleBest(photoId: number): Promise<boolean>
   getBestPhotos(folderId: number): Promise<Photo[]>
