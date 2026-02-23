@@ -3,11 +3,12 @@ import path from 'path'
 import exifr from 'exifr'
 import { BrowserWindow } from 'electron'
 import { insertPhoto, photoExists, upsertFolder, saveDatabase, updateFolderScanTime } from './database'
-import { generateThumbnail, getThumbnailPath } from './thumbnail'
+import { generateThumbnail, getThumbnailPath, ensureHeicCache } from './thumbnail'
 import { IPC_CHANNELS } from '../renderer/src/types/ipc'
 import type { ScanProgress } from '../renderer/src/types/models'
 
 const SUPPORTED_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.heic', '.heif', '.webp'])
+const HEIC_EXTENSIONS = new Set(['.heic', '.heif'])
 
 async function discoverFiles(dirPath: string): Promise<string[]> {
   const results: string[] = []
@@ -52,12 +53,63 @@ export async function scanFolder(folderPath: string, window: BrowserWindow): Pro
   const files = await discoverFiles(folderPath)
   const total = files.length
 
+  // Check existence once for all files and reuse in HEIC pre-convert + main loop
+  const existsSet = new Set<string>()
+  for (const f of files) {
+    if (photoExists(f)) {
+      existsSet.add(f)
+    }
+  }
+
+  // Pre-convert HEIC files in parallel (worker pool handles concurrency)
+  const heicFiles = files.filter(
+    (f) => HEIC_EXTENSIONS.has(path.extname(f).toLowerCase()) && !existsSet.has(f)
+  )
+  if (heicFiles.length > 0) {
+    const HEIC_BATCH = 8
+    const failedFiles: string[] = []
+
+    for (let b = 0; b < heicFiles.length; b += HEIC_BATCH) {
+      const batch = heicFiles.slice(b, b + HEIC_BATCH)
+      const results = await Promise.allSettled(batch.map((f) => ensureHeicCache(f)))
+      for (let j = 0; j < results.length; j++) {
+        if (results[j].status === 'rejected') {
+          failedFiles.push(batch[j])
+        }
+      }
+
+      sendProgress(window, {
+        phase: 'converting_heic',
+        current: Math.min(b + HEIC_BATCH, heicFiles.length),
+        total: heicFiles.length,
+        currentFile: ''
+      })
+    }
+
+    // Retry failed files one by one
+    if (failedFiles.length > 0) {
+      console.log(`[scan] HEIC pre-convert: ${failedFiles.length} failed, retrying...`)
+      let retrySuccess = 0
+      for (const f of failedFiles) {
+        try {
+          await ensureHeicCache(f)
+          retrySuccess++
+        } catch {
+          // Will be handled during main loop
+        }
+      }
+      if (retrySuccess < failedFiles.length) {
+        console.log(`[scan] HEIC retry: ${retrySuccess}/${failedFiles.length} recovered`)
+      }
+    }
+  }
+
   let insertedCount = 0
 
   for (let i = 0; i < files.length; i++) {
     const filePath = files[i]
 
-    if (photoExists(filePath)) {
+    if (existsSet.has(filePath)) {
       // Regenerate missing thumbnails for already-registered photos
       if (!fs.existsSync(getThumbnailPath(filePath))) {
         try {
@@ -77,12 +129,18 @@ export async function scanFolder(folderPath: string, window: BrowserWindow): Pro
       continue
     }
 
-    // Extract EXIF date
+    // Extract EXIF date and orientation in a single read
     let takenAt: string | null = null
+    let orientation: number = 1
     try {
-      const exif = await exifr.parse(filePath, { pick: ['DateTimeOriginal'] })
+      const exif = await exifr.parse(filePath, {
+        pick: ['DateTimeOriginal', 'Orientation']
+      })
       if (exif?.DateTimeOriginal instanceof Date) {
         takenAt = exif.DateTimeOriginal.toISOString()
+      }
+      if (typeof exif?.Orientation === 'number') {
+        orientation = exif.Orientation
       }
     } catch {
       // EXIF not available
@@ -97,9 +155,9 @@ export async function scanFolder(folderPath: string, window: BrowserWindow): Pro
       // stat failed
     }
 
-    // Generate thumbnail
+    // Generate thumbnail (pass orientation to avoid second EXIF read)
     try {
-      await generateThumbnail(filePath)
+      await generateThumbnail(filePath, orientation)
     } catch (err) {
       console.error(`Thumbnail generation failed for ${filePath}:`, err)
     }
@@ -117,8 +175,9 @@ export async function scanFolder(folderPath: string, window: BrowserWindow): Pro
 
     insertedCount++
 
-    // Save DB periodically (every 100 inserts)
+    // Periodically yield to the event loop so GC can reclaim nativeImage memory.
     if (insertedCount % 100 === 0) {
+      await new Promise((resolve) => setTimeout(resolve, 0))
       saveDatabase()
     }
 

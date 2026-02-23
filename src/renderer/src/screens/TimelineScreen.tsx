@@ -13,8 +13,8 @@ let savedScrollIndex = 0
 
 export function TimelineScreen(): JSX.Element {
   const navigate = useNavigate()
-  const { currentFolder } = useApp()
-  const { dateCards, groups, groupCounts, loading } = useTimeline(currentFolder?.id ?? null)
+  const { timelineId } = useApp()
+  const { dateCards, groups, groupCounts, loading } = useTimeline(timelineId)
   const [showAutoTag, setShowAutoTag] = useState(false)
   const virtuosoRef = useRef<GroupedVirtuosoHandle>(null)
 
@@ -41,7 +41,7 @@ export function TimelineScreen(): JSX.Element {
     })
   }, [])
 
-  if (!currentFolder) {
+  if (!timelineId) {
     navigate('/')
     return <></>
   }
@@ -143,9 +143,9 @@ export function TimelineScreen(): JSX.Element {
         </div>
       )}
 
-      {showAutoTag && currentFolder && (
+      {showAutoTag && timelineId && (
         <AutoTagDialog
-          folderId={currentFolder.id}
+          timelineId={timelineId}
           onClose={() => setShowAutoTag(false)}
           onComplete={() => {
             // Tags have been applied, no need to reload

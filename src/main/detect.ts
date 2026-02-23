@@ -72,7 +72,7 @@ const COCO_LABEL_MAP: Record<string, string> = {
 }
 
 export async function startDetection(
-  folderId: number,
+  folderIds: number[],
   threshold: number,
   mainWindow: BrowserWindow,
   date?: string,
@@ -80,8 +80,8 @@ export async function startDetection(
 ): Promise<{ tagged: number }> {
   await db.ensureDb()
   const photos = date
-    ? db.getPhotosByDate(folderId, date).map((p) => ({ id: p.id, filePath: p.filePath }))
-    : db.getAllPhotosInFolder(folderId)
+    ? db.getPhotosByDate(folderIds, date).map((p) => ({ id: p.id, filePath: p.filePath }))
+    : db.getAllPhotosInFolders(folderIds)
   const total = photos.length
 
   if (total === 0) {

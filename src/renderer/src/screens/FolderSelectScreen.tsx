@@ -8,52 +8,67 @@ import type { Folder } from '../types/models'
 export function FolderSelectScreen(): JSX.Element {
   const navigate = useNavigate()
   const location = useLocation()
-  const { setCurrentFolder, setIsScanning } = useApp()
+  const { setTimelineId, setIsScanning } = useApp()
   const { progress, isScanning, startScan } = useScan()
-  const [existingFolders, setExistingFolders] = useState<Folder[]>([])
+  const [timelineIdLocal, setTimelineIdLocal] = useState<number | null>(null)
+  const [folders, setFolders] = useState<Folder[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    window.api.getFolders().then((folders) => {
-      setExistingFolders(folders)
+    ;(async () => {
+      const timeline = await window.api.getDefaultTimeline()
+      setTimelineIdLocal(timeline.id)
+      const tlFolders = await window.api.getTimelineFolders(timeline.id)
+      setFolders(tlFolders)
       setLoading(false)
+
       // Auto-navigate only on initial app load, not when user explicitly navigated back
       const cameFromBack = (location.state as { fromBack?: boolean })?.fromBack
-      if (folders.length > 0 && !cameFromBack) {
-        setCurrentFolder(folders[0])
+      if (tlFolders.length > 0 && !cameFromBack) {
+        setTimelineId(timeline.id)
         navigate('/timeline')
       }
-    })
+    })()
   }, [])
 
   useEffect(() => {
     setIsScanning(isScanning)
   }, [isScanning, setIsScanning])
 
-  const handleSelectFolder = async (): Promise<void> => {
+  const refreshFolders = async (): Promise<void> => {
+    if (timelineIdLocal === null) return
+    const tlFolders = await window.api.getTimelineFolders(timelineIdLocal)
+    setFolders(tlFolders)
+  }
+
+  const handleAddFolder = async (): Promise<void> => {
+    if (timelineIdLocal === null) return
     const folderPath = await window.api.selectFolder()
     if (!folderPath) return
 
-    const folder: Folder = { id: 0, path: folderPath, lastScannedAt: null }
-    setCurrentFolder(folder)
+    await window.api.addFolderToTimeline(timelineIdLocal, folderPath)
     await startScan(folderPath)
-
-    // After scan, get the actual folder from DB
-    const folders = await window.api.getFolders()
-    if (folders.length > 0) {
-      setCurrentFolder(folders[0])
-    }
+    await refreshFolders()
+    setTimelineId(timelineIdLocal)
     navigate('/timeline')
   }
 
   const handleRescan = async (folder: Folder): Promise<void> => {
-    setCurrentFolder(folder)
+    if (timelineIdLocal === null) return
     await startScan(folder.path)
+    setTimelineId(timelineIdLocal)
     navigate('/timeline')
   }
 
-  const handleViewEvents = (folder: Folder): void => {
-    setCurrentFolder(folder)
+  const handleRemoveFolder = async (folderId: number): Promise<void> => {
+    if (timelineIdLocal === null) return
+    await window.api.removeFolderFromTimeline(timelineIdLocal, folderId)
+    await refreshFolders()
+  }
+
+  const handleViewTimeline = (): void => {
+    if (timelineIdLocal === null) return
+    setTimelineId(timelineIdLocal)
     navigate('/timeline')
   }
 
@@ -79,33 +94,38 @@ export function FolderSelectScreen(): JSX.Element {
           <ScanProgress progress={progress} />
         ) : (
           <>
-            <button className="btn btn-primary btn-large" onClick={handleSelectFolder}>
+            <button className="btn btn-primary btn-large" onClick={handleAddFolder}>
               あなたの思い出はどこにありますか？
             </button>
 
-            {existingFolders.length > 0 && (
-              <div className="existing-folders">
-                <h3>スキャン済みフォルダ</h3>
-                {existingFolders.map((folder) => (
-                  <div key={folder.id} className="folder-item">
-                    <span className="folder-path">{folder.path}</span>
-                    <div className="folder-actions">
-                      <button
-                        className="btn btn-secondary"
-                        onClick={() => handleViewEvents(folder)}
-                      >
-                        表示
-                      </button>
-                      <button
-                        className="btn btn-ghost"
-                        onClick={() => handleRescan(folder)}
-                      >
-                        再スキャン
-                      </button>
+            {folders.length > 0 && (
+              <>
+                <div className="existing-folders">
+                  <h3>登録済みフォルダ</h3>
+                  {folders.map((folder) => (
+                    <div key={folder.id} className="folder-item">
+                      <span className="folder-path">{folder.path}</span>
+                      <div className="folder-actions">
+                        <button
+                          className="btn btn-ghost"
+                          onClick={() => handleRescan(folder)}
+                        >
+                          再スキャン
+                        </button>
+                        <button
+                          className="btn btn-ghost"
+                          onClick={() => handleRemoveFolder(folder.id)}
+                        >
+                          削除
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+                <button className="btn btn-accent btn-large" onClick={handleViewTimeline}>
+                  タイムラインを見る
+                </button>
+              </>
             )}
           </>
         )}

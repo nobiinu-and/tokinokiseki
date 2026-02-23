@@ -55,33 +55,67 @@ function getHeicCachePath(filePath: string): string {
   return path.join(heicCacheDir!, `${hash}.jpg`)
 }
 
-function convertHeicToJpeg(filePath: string, outputPath: string): Promise<void> {
+// --- HEIC Worker Pool ---
+
+import os from 'os'
+
+const HEIC_POOL_SIZE = Math.max(2, Math.min(os.cpus().length - 1, 4))
+let heicPool: Worker[] = []
+let heicPoolIdx = 0
+let heicPoolIdleTimer: ReturnType<typeof setTimeout> | null = null
+
+function ensureHeicPool(): void {
+  if (heicPool.length > 0) {
+    // Reset idle timer
+    if (heicPoolIdleTimer) clearTimeout(heicPoolIdleTimer)
+    heicPoolIdleTimer = setTimeout(shutdownHeicPool, 30000)
+    return
+  }
+
   ensureDirs()
+  for (let i = 0; i < HEIC_POOL_SIZE; i++) {
+    const w = new Worker(workerPath!)
+    w.on('error', () => { /* handled per-request */ })
+    heicPool.push(w)
+  }
+  heicPoolIdx = 0
+
+  heicPoolIdleTimer = setTimeout(shutdownHeicPool, 30000)
+}
+
+function shutdownHeicPool(): void {
+  for (const w of heicPool) w.terminate()
+  heicPool = []
+  heicPoolIdleTimer = null
+}
+
+let heicRequestId = 0
+
+function convertHeicToJpeg(filePath: string, outputPath: string): Promise<void> {
+  ensureHeicPool()
+  const worker = heicPool[heicPoolIdx % heicPool.length]
+  heicPoolIdx++
+  const reqId = ++heicRequestId
+
   return new Promise((resolve, reject) => {
-    const worker = new Worker(workerPath!)
-
     const timeout = setTimeout(() => {
-      worker.terminate()
+      worker.off('message', handler)
       reject(new Error(`HEIC conversion timed out: ${filePath}`))
-    }, 120000) // 2 min timeout
+    }, 120000)
 
-    worker.on('message', (msg: { success: boolean; error?: string }) => {
+    const handler = (msg: { reqId: number; success: boolean; error?: string }): void => {
+      if (msg.reqId !== reqId) return // Not our response
       clearTimeout(timeout)
-      worker.terminate()
+      worker.off('message', handler)
       if (msg.success) {
         resolve()
       } else {
         reject(new Error(msg.error || 'HEIC conversion failed'))
       }
-    })
+    }
 
-    worker.on('error', (err) => {
-      clearTimeout(timeout)
-      worker.terminate()
-      reject(err)
-    })
-
-    worker.postMessage({ filePath, outputPath })
+    worker.on('message', handler)
+    worker.postMessage({ reqId, filePath, outputPath })
   })
 }
 
@@ -153,8 +187,8 @@ function createThumbnailFromPath(
 
   const resized = image.resize({ width: newWidth, height: newHeight, quality: 'good' })
   const corrected = applyOrientationToNativeImage(resized, orientation)
-  const jpegBuffer = corrected.toJPEG(80)
 
+  const jpegBuffer = corrected.toJPEG(80)
   fs.writeFileSync(thumbPath, jpegBuffer)
 }
 
@@ -179,20 +213,30 @@ export function regenerateThumbnail(filePath: string, correctionDegrees: number)
   createThumbnailFromPath(filePath, thumbPath, orientation)
 }
 
-export async function generateThumbnail(filePath: string): Promise<string> {
+/**
+ * Convert HEIC to JPEG cache if needed. Returns true if conversion was performed.
+ * Can be called in parallel for multiple files before generateThumbnail.
+ */
+export async function ensureHeicCache(filePath: string): Promise<boolean> {
+  if (!isHeic(filePath)) return false
+  ensureDirs()
+  const jpegCachePath = getHeicCachePath(filePath)
+  if (fs.existsSync(jpegCachePath)) return false
+
+  await convertHeicToJpeg(filePath, jpegCachePath)
+  return true
+}
+
+export async function generateThumbnail(
+  filePath: string,
+  knownOrientation?: number
+): Promise<string> {
   const thumbPath = getThumbnailPath(filePath)
 
   if (isHeic(filePath)) {
-    // HEIC: convert to JPEG cache first, then generate thumbnail from that.
-    // heic-convert already applies HEIF rotation (irot) during decoding,
-    // so the JPEG cache has correct pixel orientation — use orientation=1
-    // to avoid double-rotation from EXIF orientation tag.
+    // HEIC: ensure JPEG cache exists (may already be done by parallel pre-conversion)
+    await ensureHeicCache(filePath)
     const jpegCachePath = getHeicCachePath(filePath)
-
-    if (!fs.existsSync(jpegCachePath)) {
-      await convertHeicToJpeg(filePath, jpegCachePath)
-    }
-
     createThumbnailFromPath(jpegCachePath, thumbPath, 1)
     return thumbPath
   }
@@ -201,12 +245,14 @@ export async function generateThumbnail(filePath: string): Promise<string> {
     return thumbPath
   }
 
-  // Read EXIF orientation from the original file
-  let orientation = 1
-  try {
-    orientation = (await exifr.orientation(filePath)) || 1
-  } catch {
-    // No EXIF data
+  // Use provided orientation or read EXIF
+  let orientation = knownOrientation ?? 1
+  if (knownOrientation == null) {
+    try {
+      orientation = (await exifr.orientation(filePath)) || 1
+    } catch {
+      // No EXIF data
+    }
   }
 
   // Non-HEIC: direct thumbnail generation

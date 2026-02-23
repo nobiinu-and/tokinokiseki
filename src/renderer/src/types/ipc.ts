@@ -27,5 +27,10 @@ export const IPC_CHANNELS = {
   REMOVE_TAG_FROM_PHOTO: 'tags:removeFromPhoto',
 
   FIND_DUPLICATES: 'duplicates:find',
-  DELETE_PHOTO: 'photos:delete'
+  DELETE_PHOTO: 'photos:delete',
+
+  GET_DEFAULT_TIMELINE: 'timeline:getDefault',
+  GET_TIMELINE_FOLDERS: 'timeline:getFolders',
+  ADD_FOLDER_TO_TIMELINE: 'timeline:addFolder',
+  REMOVE_FOLDER_FROM_TIMELINE: 'timeline:removeFolder'
 } as const

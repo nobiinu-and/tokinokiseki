@@ -13,7 +13,7 @@ interface LabelDef {
 }
 
 export async function startAutoTag(
-  folderId: number,
+  folderIds: number[],
   labels: LabelDef[],
   threshold: number,
   mainWindow: BrowserWindow,
@@ -22,8 +22,8 @@ export async function startAutoTag(
 ): Promise<{ tagged: number }> {
   await db.ensureDb()
   const photos = date
-    ? db.getPhotosByDate(folderId, date).map((p) => ({ id: p.id, filePath: p.filePath }))
-    : db.getAllPhotosInFolder(folderId)
+    ? db.getPhotosByDate(folderIds, date).map((p) => ({ id: p.id, filePath: p.filePath }))
+    : db.getAllPhotosInFolders(folderIds)
   const total = photos.length
 
   if (total === 0) {

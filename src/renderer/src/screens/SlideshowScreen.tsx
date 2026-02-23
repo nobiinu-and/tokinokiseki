@@ -12,23 +12,23 @@ interface SlideshowPhoto {
 export function SlideshowScreen(): JSX.Element {
   const navigate = useNavigate()
   const { date } = useParams<{ date: string }>()
-  const { currentFolder } = useApp()
+  const { timelineId } = useApp()
   const [photos, setPhotos] = useState<SlideshowPhoto[]>([])
   const [photoUrl, setPhotoUrl] = useState<string>('')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!currentFolder) return
+    if (!timelineId) return
     setLoading(true)
     const fetchPhotos = date
-      ? window.api.getBestPhotosForDate(currentFolder.id, date)
-      : window.api.getBestPhotos(currentFolder.id)
+      ? window.api.getBestPhotosForDate(timelineId, date)
+      : window.api.getBestPhotos(timelineId)
 
     fetchPhotos.then((result) => {
       setPhotos(result)
       setLoading(false)
     })
-  }, [currentFolder, date])
+  }, [timelineId, date])
 
   const onExit = (): void => {
     if (date) {
@@ -50,7 +50,7 @@ export function SlideshowScreen(): JSX.Element {
     }
   }, [currentPhoto])
 
-  if (!currentFolder) {
+  if (!timelineId) {
     navigate('/')
     return <></>
   }

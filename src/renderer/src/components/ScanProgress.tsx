@@ -13,13 +13,17 @@ export function ScanProgress({ progress }: Props): JSX.Element {
       <div className="scan-progress-header">
         {progress.phase === 'discovering' ? (
           <span>写真を検索中...</span>
+        ) : progress.phase === 'converting_heic' ? (
+          <span>
+            HEIC変換中 (ステップ 1/2) {progress.current.toLocaleString()} / {progress.total.toLocaleString()}
+          </span>
         ) : (
           <span>
-            処理中 {progress.current.toLocaleString()} / {progress.total.toLocaleString()}
+            取り込み中 (ステップ 2/2) {progress.current.toLocaleString()} / {progress.total.toLocaleString()}
           </span>
         )}
       </div>
-      {progress.phase === 'processing' && (
+      {progress.phase !== 'discovering' && (
         <>
           <div className="scan-progress-bar">
             <div

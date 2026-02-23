@@ -105,11 +105,11 @@ export interface DuplicateGroup {
  * Find groups of duplicate/similar photos within a single date event.
  */
 export function findDuplicateGroups(
-  folderId: number,
+  folderIds: number[],
   date: string,
   threshold: number = 10
 ): DuplicateGroup[] {
-  const photos = getPhotosByDate(folderId, date)
+  const photos = getPhotosByDate(folderIds, date)
   if (photos.length < 2) return []
 
   // Compute dHash for each photo using its thumbnail

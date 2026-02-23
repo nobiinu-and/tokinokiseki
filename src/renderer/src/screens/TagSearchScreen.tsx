@@ -29,7 +29,7 @@ function formatDate(dateStr: string): string {
 
 export function TagSearchScreen(): JSX.Element {
   const navigate = useNavigate()
-  const { currentFolder } = useApp()
+  const { timelineId } = useApp()
   const [tagStats, setTagStats] = useState<TagStat[]>([])
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
   const [photos, setPhotos] = useState<Photo[]>([])
@@ -39,22 +39,22 @@ export function TagSearchScreen(): JSX.Element {
 
   // Load tag stats
   useEffect(() => {
-    if (!currentFolder) return
-    window.api.getTagStats(currentFolder.id).then(setTagStats)
-  }, [currentFolder])
+    if (!timelineId) return
+    window.api.getTagStats(timelineId).then(setTagStats)
+  }, [timelineId])
 
   // Load photos when tag is selected
   useEffect(() => {
-    if (!currentFolder || !selectedTag) {
+    if (!timelineId || !selectedTag) {
       setPhotos([])
       return
     }
     setLoading(true)
     window.api
-      .getPhotosByTag(currentFolder.id, selectedTag)
+      .getPhotosByTag(timelineId, selectedTag)
       .then(setPhotos)
       .finally(() => setLoading(false))
-  }, [currentFolder, selectedTag])
+  }, [timelineId, selectedTag])
 
   // Load tags for each photo
   const loadTags = useCallback(async (): Promise<void> => {
@@ -112,13 +112,13 @@ export function TagSearchScreen(): JSX.Element {
       const updatedTags = await window.api.addTagToPhoto(photoId, tagName)
       setPhotoTags((prev) => ({ ...prev, [photoId]: updatedTags }))
       // Refresh tag stats to update the chip list
-      if (currentFolder) {
-        window.api.getTagStats(currentFolder.id).then(setTagStats)
+      if (timelineId) {
+        window.api.getTagStats(timelineId).then(setTagStats)
       }
     } catch (err) {
       console.error('Failed to add tag:', err)
     }
-  }, [currentFolder])
+  }, [timelineId])
 
   const handleRemoveTag = useCallback(async (photoId: number, tagName: string): Promise<void> => {
     try {
@@ -133,17 +133,17 @@ export function TagSearchScreen(): JSX.Element {
         return next
       })
       // Refresh tag stats to update the chip list
-      if (currentFolder) {
-        window.api.getTagStats(currentFolder.id).then(setTagStats)
+      if (timelineId) {
+        window.api.getTagStats(timelineId).then(setTagStats)
       }
       // If we removed the currently selected tag from a photo, refresh the photo list
-      if (tagName === selectedTag && currentFolder) {
-        window.api.getPhotosByTag(currentFolder.id, tagName).then(setPhotos)
+      if (tagName === selectedTag && timelineId) {
+        window.api.getPhotosByTag(timelineId, tagName).then(setPhotos)
       }
     } catch (err) {
       console.error('Failed to remove tag:', err)
     }
-  }, [currentFolder, selectedTag])
+  }, [timelineId, selectedTag])
 
   // Calculate flat index for Lightbox from date group + local index
   const openLightbox = useCallback(
@@ -154,7 +154,7 @@ export function TagSearchScreen(): JSX.Element {
     [allPhotosFlat]
   )
 
-  if (!currentFolder) {
+  if (!timelineId) {
     navigate('/')
     return <></>
   }

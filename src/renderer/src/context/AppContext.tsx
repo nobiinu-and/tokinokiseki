@@ -1,9 +1,8 @@
 import { createContext, useContext, useState, ReactNode } from 'react'
-import type { Folder } from '../types/models'
 
 interface AppState {
-  currentFolder: Folder | null
-  setCurrentFolder: (folder: Folder | null) => void
+  timelineId: number | null
+  setTimelineId: (id: number | null) => void
   isScanning: boolean
   setIsScanning: (scanning: boolean) => void
 }
@@ -11,11 +10,11 @@ interface AppState {
 const AppContext = createContext<AppState | null>(null)
 
 export function AppProvider({ children }: { children: ReactNode }): JSX.Element {
-  const [currentFolder, setCurrentFolder] = useState<Folder | null>(null)
+  const [timelineId, setTimelineId] = useState<number | null>(null)
   const [isScanning, setIsScanning] = useState(false)
 
   return (
-    <AppContext.Provider value={{ currentFolder, setCurrentFolder, isScanning, setIsScanning }}>
+    <AppContext.Provider value={{ timelineId, setTimelineId, isScanning, setIsScanning }}>
       {children}
     </AppContext.Provider>
   )
