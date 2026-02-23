@@ -4,6 +4,11 @@ export interface Folder {
   lastScannedAt: string | null
 }
 
+export interface Timeline {
+  id: number
+  name: string
+}
+
 export interface Photo {
   id: number
   folderId: number
@@ -28,7 +33,7 @@ export interface DateCardSummary {
 }
 
 export interface ScanProgress {
-  phase: 'discovering' | 'processing'
+  phase: 'discovering' | 'converting_heic' | 'processing'
   current: number
   total: number
   currentFile: string

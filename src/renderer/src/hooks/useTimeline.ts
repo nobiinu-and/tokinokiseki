@@ -109,23 +109,23 @@ function computeYearMonthGroups(dateCards: DateCardWithGroup[]): YearMonthGroup[
   return groups
 }
 
-export function useTimeline(folderId: number | null): UseTimelineResult {
+export function useTimeline(timelineId: number | null): UseTimelineResult {
   const [dateCards, setDateCards] = useState<DateCardWithGroup[]>([])
   const [groups, setGroups] = useState<YearMonthGroup[]>([])
   const [loading, setLoading] = useState(false)
 
   const refresh = useCallback(() => {
-    if (folderId === null) return
+    if (timelineId === null) return
     setLoading(true)
     window.api
-      .getDateSummary(folderId)
+      .getDateSummary(timelineId)
       .then((summaries) => {
         const computed = computeConsecutiveGroups(summaries)
         setDateCards(computed)
         setGroups(computeYearMonthGroups(computed))
       })
       .finally(() => setLoading(false))
-  }, [folderId])
+  }, [timelineId])
 
   useEffect(() => {
     refresh()

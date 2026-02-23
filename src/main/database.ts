@@ -98,8 +98,44 @@ export async function initDatabase(): Promise<void> {
     db.run('CREATE INDEX IF NOT EXISTS idx_photo_tags_photo ON photo_tags(photo_id)')
     db.run('CREATE INDEX IF NOT EXISTS idx_photo_tags_tag ON photo_tags(tag_id)')
 
+    // --- Timeline tables ---
+    db.run(`
+      CREATE TABLE IF NOT EXISTS timelines (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL DEFAULT 'メイン',
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `)
+    db.run(`
+      CREATE TABLE IF NOT EXISTS timeline_folders (
+        timeline_id INTEGER NOT NULL,
+        folder_id INTEGER NOT NULL,
+        PRIMARY KEY (timeline_id, folder_id),
+        FOREIGN KEY (timeline_id) REFERENCES timelines(id),
+        FOREIGN KEY (folder_id) REFERENCES folders(id)
+      )
+    `)
+
+    // Migration: if timelines table is empty, create default and add all existing folders
+    const tlCount = db.exec('SELECT COUNT(*) FROM timelines')
+    const hasTimelines = tlCount.length > 0 && (tlCount[0].values[0][0] as number) > 0
+    if (!hasTimelines) {
+      db.run("INSERT INTO timelines (name) VALUES ('メイン')")
+      const tlIdResult = db.exec('SELECT last_insert_rowid()')
+      const tlId = tlIdResult[0].values[0][0] as number
+      const existingFolders = db.exec('SELECT id FROM folders')
+      if (existingFolders.length > 0) {
+        for (const row of existingFolders[0].values) {
+          db.run('INSERT OR IGNORE INTO timeline_folders (timeline_id, folder_id) VALUES (?, ?)', [
+            tlId,
+            row[0] as number
+          ])
+        }
+      }
+    }
+
     // Only save if schema was actually modified (first run or migration)
-    if (isNewDb || !hasOrientationCol) {
+    if (isNewDb || !hasOrientationCol || !hasTimelines) {
       saveDatabase()
     }
   })()
@@ -127,6 +163,79 @@ export function saveDatabase(): void {
   fs.writeSync(fd, buffer)
   fs.fsyncSync(fd)
   fs.closeSync(fd)
+}
+
+// --- Timeline helpers ---
+
+function inClause(ids: number[]): string {
+  return ids.map((id) => Number(id)).join(',')
+}
+
+export function resolveTimelineFolderIds(timelineId: number): number[] {
+  const d = getDb()
+  const result = d.exec('SELECT folder_id FROM timeline_folders WHERE timeline_id = ?', [
+    timelineId
+  ])
+  if (result.length === 0) return []
+  return result[0].values.map((row) => row[0] as number)
+}
+
+export function getOrCreateDefaultTimeline(): { id: number; name: string } {
+  const d = getDb()
+  const result = d.exec('SELECT id, name FROM timelines ORDER BY id LIMIT 1')
+  if (result.length > 0 && result[0].values.length > 0) {
+    return { id: result[0].values[0][0] as number, name: result[0].values[0][1] as string }
+  }
+  d.run("INSERT INTO timelines (name) VALUES ('メイン')")
+  const idResult = d.exec('SELECT last_insert_rowid()')
+  const id = idResult[0].values[0][0] as number
+  saveDatabase()
+  return { id, name: 'メイン' }
+}
+
+export function getTimelineFolders(
+  timelineId: number
+): { id: number; path: string; lastScannedAt: string | null }[] {
+  const d = getDb()
+  const result = d.exec(
+    `SELECT f.id, f.path, f.last_scanned_at
+     FROM folders f
+     JOIN timeline_folders tf ON tf.folder_id = f.id
+     WHERE tf.timeline_id = ?
+     ORDER BY f.id DESC`,
+    [timelineId]
+  )
+  if (result.length === 0) return []
+  return result[0].values.map((row) => ({
+    id: row[0] as number,
+    path: row[1] as string,
+    lastScannedAt: row[2] as string | null
+  }))
+}
+
+export function addFolderToTimeline(timelineId: number, folderId: number): void {
+  const d = getDb()
+  d.run('INSERT OR IGNORE INTO timeline_folders (timeline_id, folder_id) VALUES (?, ?)', [
+    timelineId,
+    folderId
+  ])
+  saveDatabase()
+}
+
+export function removeFolderFromTimeline(timelineId: number, folderId: number): void {
+  const d = getDb()
+  // Cascade delete: photo_tags → photos → timeline_folders, then folder
+  d.run(
+    'DELETE FROM photo_tags WHERE photo_id IN (SELECT id FROM photos WHERE folder_id = ?)',
+    [folderId]
+  )
+  d.run('DELETE FROM photos WHERE folder_id = ?', [folderId])
+  d.run('DELETE FROM timeline_folders WHERE timeline_id = ? AND folder_id = ?', [
+    timelineId,
+    folderId
+  ])
+  d.run('DELETE FROM folders WHERE id = ?', [folderId])
+  saveDatabase()
 }
 
 // --- Folder queries ---
@@ -191,7 +300,7 @@ export function insertPhoto(photo: {
 }
 
 export function getDateSummary(
-  folderId: number
+  folderIds: number[]
 ): {
   date: string
   photoCount: number
@@ -199,22 +308,23 @@ export function getDateSummary(
   representativeFilePath: string
   hasBest: boolean
 }[] {
+  if (folderIds.length === 0) return []
   const d = getDb()
+  const ids = inClause(folderIds)
   const result = d.exec(
     `SELECT
        date(COALESCE(taken_at, file_modified_at)) as event_date,
        COUNT(*) as photo_count,
        MIN(id) as representative_id,
        (SELECT file_path FROM photos p2
-        WHERE p2.folder_id = photos.folder_id
+        WHERE p2.folder_id IN (${ids})
         AND date(COALESCE(p2.taken_at, p2.file_modified_at)) = date(COALESCE(photos.taken_at, photos.file_modified_at))
         ORDER BY p2.id LIMIT 1) as representative_path,
        MAX(is_best) as has_best
      FROM photos
-     WHERE folder_id = ?
+     WHERE folder_id IN (${ids})
      GROUP BY event_date
-     ORDER BY event_date DESC`,
-    [folderId]
+     ORDER BY event_date DESC`
   )
   if (result.length === 0) return []
   return result[0].values.map((row) => ({
@@ -227,7 +337,7 @@ export function getDateSummary(
 }
 
 export function getPhotosByDate(
-  folderId: number,
+  folderIds: number[],
   date: string
 ): {
   id: number
@@ -242,14 +352,16 @@ export function getPhotosByDate(
   createdAt: string
   orientationCorrection: number | null
 }[] {
+  if (folderIds.length === 0) return []
   const d = getDb()
+  const ids = inClause(folderIds)
   const result = d.exec(
     `SELECT id, folder_id, file_path, file_name, taken_at, file_modified_at,
             width, height, is_best, created_at, orientation_correction
      FROM photos
-     WHERE folder_id = ? AND date(COALESCE(taken_at, file_modified_at)) = ?
+     WHERE folder_id IN (${ids}) AND date(COALESCE(taken_at, file_modified_at)) = ?
      ORDER BY COALESCE(taken_at, file_modified_at) ASC`,
-    [folderId, date]
+    [date]
   )
   if (result.length === 0) return []
   return result[0].values.map((row) => ({
@@ -279,15 +391,16 @@ export function toggleBest(photoId: number): boolean {
 }
 
 export function getBestPhotos(
-  folderId: number
+  folderIds: number[]
 ): { id: number; filePath: string; fileName: string; takenAt: string | null }[] {
+  if (folderIds.length === 0) return []
   const d = getDb()
+  const ids = inClause(folderIds)
   const result = d.exec(
     `SELECT id, file_path, file_name, taken_at
      FROM photos
-     WHERE folder_id = ? AND is_best = 1
-     ORDER BY COALESCE(taken_at, file_modified_at) DESC`,
-    [folderId]
+     WHERE folder_id IN (${ids}) AND is_best = 1
+     ORDER BY COALESCE(taken_at, file_modified_at) DESC`
   )
   if (result.length === 0) return []
   return result[0].values.map((row) => ({
@@ -299,16 +412,18 @@ export function getBestPhotos(
 }
 
 export function getBestPhotosForDate(
-  folderId: number,
+  folderIds: number[],
   date: string
 ): { id: number; filePath: string; fileName: string; takenAt: string | null }[] {
+  if (folderIds.length === 0) return []
   const d = getDb()
+  const ids = inClause(folderIds)
   const result = d.exec(
     `SELECT id, file_path, file_name, taken_at
      FROM photos
-     WHERE folder_id = ? AND is_best = 1 AND date(COALESCE(taken_at, file_modified_at)) = ?
+     WHERE folder_id IN (${ids}) AND is_best = 1 AND date(COALESCE(taken_at, file_modified_at)) = ?
      ORDER BY COALESCE(taken_at, file_modified_at) ASC`,
-    [folderId, date]
+    [date]
   )
   if (result.length === 0) return []
   return result[0].values.map((row) => ({
@@ -388,17 +503,18 @@ export function getTagsForPhoto(photoId: number): { name: string; confidence: nu
   }))
 }
 
-export function getTagStats(folderId: number): { name: string; count: number }[] {
+export function getTagStats(folderIds: number[]): { name: string; count: number }[] {
+  if (folderIds.length === 0) return []
   const d = getDb()
+  const ids = inClause(folderIds)
   const result = d.exec(
     `SELECT t.name, COUNT(*) as cnt
      FROM photo_tags pt
      JOIN tags t ON t.id = pt.tag_id
      JOIN photos p ON p.id = pt.photo_id
-     WHERE p.folder_id = ?
+     WHERE p.folder_id IN (${ids})
      GROUP BY t.name
-     ORDER BY cnt DESC`,
-    [folderId]
+     ORDER BY cnt DESC`
   )
   if (result.length === 0) return []
   return result[0].values.map((row) => ({
@@ -408,7 +524,7 @@ export function getTagStats(folderId: number): { name: string; count: number }[]
 }
 
 export function getPhotosByTag(
-  folderId: number,
+  folderIds: number[],
   tagName: string
 ): {
   id: number
@@ -423,7 +539,9 @@ export function getPhotosByTag(
   createdAt: string
   orientationCorrection: number | null
 }[] {
+  if (folderIds.length === 0) return []
   const d = getDb()
+  const ids = inClause(folderIds)
   const result = d.exec(
     `SELECT p.id, p.folder_id, p.file_path, p.file_name, p.taken_at,
             p.file_modified_at, p.width, p.height, p.is_best, p.created_at,
@@ -431,9 +549,9 @@ export function getPhotosByTag(
      FROM photos p
      JOIN photo_tags pt ON pt.photo_id = p.id
      JOIN tags t ON t.id = pt.tag_id
-     WHERE p.folder_id = ? AND t.name = ?
+     WHERE p.folder_id IN (${ids}) AND t.name = ?
      ORDER BY COALESCE(p.taken_at, p.file_modified_at) DESC`,
-    [folderId, tagName]
+    [tagName]
   )
   if (result.length === 0) return []
   return result[0].values.map((row) => ({
@@ -451,16 +569,18 @@ export function getPhotosByTag(
   }))
 }
 
-export function getPhotoIdsByTag(folderId: number, tagName: string): number[] {
+export function getPhotoIdsByTag(folderIds: number[], tagName: string): number[] {
+  if (folderIds.length === 0) return []
   const d = getDb()
+  const ids = inClause(folderIds)
   const result = d.exec(
     `SELECT pt.photo_id
      FROM photo_tags pt
      JOIN tags t ON t.id = pt.tag_id
      JOIN photos p ON p.id = pt.photo_id
-     WHERE p.folder_id = ? AND t.name = ?
+     WHERE p.folder_id IN (${ids}) AND t.name = ?
      ORDER BY pt.confidence DESC`,
-    [folderId, tagName]
+    [tagName]
   )
   if (result.length === 0) return []
   return result[0].values.map((row) => row[0] as number)
@@ -474,24 +594,26 @@ export function deletePhotoTagByName(photoId: number, tagName: string): void {
   )
 }
 
-export function clearPhotoTags(folderId: number): void {
+export function clearPhotoTags(folderIds: number[]): void {
+  if (folderIds.length === 0) return
   const d = getDb()
+  const ids = inClause(folderIds)
   d.run(
     `DELETE FROM photo_tags WHERE photo_id IN (
-       SELECT id FROM photos WHERE folder_id = ?
-     )`,
-    [folderId]
+       SELECT id FROM photos WHERE folder_id IN (${ids})
+     )`
   )
   saveDatabase()
 }
 
-export function getAllPhotosInFolder(
-  folderId: number
+export function getAllPhotosInFolders(
+  folderIds: number[]
 ): { id: number; filePath: string }[] {
+  if (folderIds.length === 0) return []
   const d = getDb()
+  const ids = inClause(folderIds)
   const result = d.exec(
-    'SELECT id, file_path FROM photos WHERE folder_id = ? ORDER BY id',
-    [folderId]
+    `SELECT id, file_path FROM photos WHERE folder_id IN (${ids}) ORDER BY id`
   )
   if (result.length === 0) return []
   return result[0].values.map((row) => ({
@@ -508,20 +630,22 @@ export function updateOrientationCorrection(photoId: number, correction: number)
 }
 
 export function getPhotosNeedingRotationCheck(
-  folderId: number,
+  folderIds: number[],
   date?: string
 ): { id: number; filePath: string }[] {
+  if (folderIds.length === 0) return []
   const d = getDb()
+  const ids = inClause(folderIds)
   const query = date
     ? `SELECT id, file_path FROM photos
-       WHERE folder_id = ? AND orientation_correction IS NULL
+       WHERE folder_id IN (${ids}) AND orientation_correction IS NULL
          AND date(COALESCE(taken_at, file_modified_at)) = ?
        ORDER BY id`
     : `SELECT id, file_path FROM photos
-       WHERE folder_id = ? AND orientation_correction IS NULL
+       WHERE folder_id IN (${ids}) AND orientation_correction IS NULL
        ORDER BY id`
-  const params = date ? [folderId, date] : [folderId]
-  const result = d.exec(query, params)
+  const params = date ? [date] : []
+  const result = d.exec(query, params.length > 0 ? params : undefined)
   if (result.length === 0) return []
   return result[0].values.map((row) => ({
     id: row[0] as number,

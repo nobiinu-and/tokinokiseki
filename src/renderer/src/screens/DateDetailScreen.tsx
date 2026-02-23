@@ -23,8 +23,8 @@ function formatDate(dateStr: string): string {
 export function DateDetailScreen(): JSX.Element {
   const navigate = useNavigate()
   const { date } = useParams<{ date: string }>()
-  const { currentFolder } = useApp()
-  const { photos, loading, toggleBest, reload } = usePhotos(currentFolder?.id ?? null, date ?? null)
+  const { timelineId } = useApp()
+  const { photos, loading, toggleBest, reload } = usePhotos(timelineId, date ?? null)
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
   const [photoTags, setPhotoTags] = useState<Record<number, PhotoTag[]>>({})
   const [allTags, setAllTags] = useState<string[]>([])
@@ -44,10 +44,10 @@ export function DateDetailScreen(): JSX.Element {
   }, [photos])
 
   const loadAllTags = useCallback(async (): Promise<void> => {
-    if (!currentFolder) return
-    const stats = await window.api.getTagStats(currentFolder.id)
+    if (!timelineId) return
+    const stats = await window.api.getTagStats(timelineId)
     setAllTags(stats.map((s) => s.name))
-  }, [currentFolder])
+  }, [timelineId])
 
   useEffect(() => {
     loadTags()
@@ -86,7 +86,7 @@ export function DateDetailScreen(): JSX.Element {
     }
   }, [])
 
-  if (!currentFolder || !date) {
+  if (!timelineId || !date) {
     navigate('/')
     return <></>
   }
@@ -158,18 +158,18 @@ export function DateDetailScreen(): JSX.Element {
         />
       )}
 
-      {showAutoTag && currentFolder && (
+      {showAutoTag && timelineId && (
         <AutoTagDialog
-          folderId={currentFolder.id}
+          timelineId={timelineId}
           date={date}
           onClose={() => setShowAutoTag(false)}
           onComplete={() => { reload(); loadTags() }}
         />
       )}
 
-      {showDuplicates && currentFolder && (
+      {showDuplicates && timelineId && (
         <DuplicateDialog
-          folderId={currentFolder.id}
+          timelineId={timelineId}
           date={date}
           onClose={() => setShowDuplicates(false)}
           onComplete={() => reload()}

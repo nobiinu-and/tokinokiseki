@@ -32,9 +32,10 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     await scanFolder(folderPath, mainWindow)
   })
 
-  ipcMain.handle(IPC_CHANNELS.GET_DATE_SUMMARY, async (_event, folderId: number) => {
+  ipcMain.handle(IPC_CHANNELS.GET_DATE_SUMMARY, async (_event, timelineId: number) => {
     await db.ensureDb()
-    const summaries = db.getDateSummary(folderId)
+    const folderIds = db.resolveTimelineFolderIds(timelineId)
+    const summaries = db.getDateSummary(folderIds)
     return summaries.map((s) => ({
       ...s,
       thumbnailPath: pathToFileURL(getThumbnailPath(s.representativeFilePath)).toString()
@@ -43,9 +44,10 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
 
   ipcMain.handle(
     IPC_CHANNELS.GET_PHOTOS_BY_DATE,
-    async (_event, folderId: number, date: string) => {
+    async (_event, timelineId: number, date: string) => {
       await db.ensureDb()
-      return db.getPhotosByDate(folderId, date)
+      const folderIds = db.resolveTimelineFolderIds(timelineId)
+      return db.getPhotosByDate(folderIds, date)
     }
   )
 
@@ -54,16 +56,18 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     return db.toggleBest(photoId)
   })
 
-  ipcMain.handle(IPC_CHANNELS.GET_BEST_PHOTOS, async (_event, folderId: number) => {
+  ipcMain.handle(IPC_CHANNELS.GET_BEST_PHOTOS, async (_event, timelineId: number) => {
     await db.ensureDb()
-    return db.getBestPhotos(folderId)
+    const folderIds = db.resolveTimelineFolderIds(timelineId)
+    return db.getBestPhotos(folderIds)
   })
 
   ipcMain.handle(
     IPC_CHANNELS.GET_BEST_PHOTOS_FOR_DATE,
-    async (_event, folderId: number, date: string) => {
+    async (_event, timelineId: number, date: string) => {
       await db.ensureDb()
-      return db.getBestPhotosForDate(folderId, date)
+      const folderIds = db.resolveTimelineFolderIds(timelineId)
+      return db.getBestPhotosForDate(folderIds, date)
     }
   )
 
@@ -85,7 +89,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     IPC_CHANNELS.START_AUTO_TAG,
     async (
       _event,
-      folderId: number,
+      timelineId: number,
       labels: { label: string; display: string }[],
       threshold: number,
       detectEnabled: boolean,
@@ -101,6 +105,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
       autoTagAbort = new AbortController()
       const signal = autoTagAbort.signal
       await db.ensureDb()
+      const folderIds = db.resolveTimelineFolderIds(timelineId)
 
       // Run in background, don't await — progress is sent via events
       ;(async () => {
@@ -108,10 +113,10 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
 
         // Phase 0: Rotation correction (EXIF-missing photos only)
         if (rotationEnabled) {
-          await startRotationCheck(folderId, rotationThreshold, mainWindow, date, signal)
+          await startRotationCheck(folderIds, rotationThreshold, mainWindow, date, signal)
           if (signal.aborted) {
             mainWindow.webContents.send(IPC_CHANNELS.AUTO_TAG_COMPLETE, {
-              folderId,
+              timelineId,
               tagged: totalTagged,
               cancelled: true
             })
@@ -121,11 +126,11 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
 
         // Phase 1: Object detection (YOLO)
         if (detectEnabled) {
-          const r = await startDetection(folderId, detectThreshold, mainWindow, date, signal)
+          const r = await startDetection(folderIds, detectThreshold, mainWindow, date, signal)
           totalTagged += r.tagged
           if (signal.aborted) {
             mainWindow.webContents.send(IPC_CHANNELS.AUTO_TAG_COMPLETE, {
-              folderId,
+              timelineId,
               tagged: totalTagged,
               cancelled: true
             })
@@ -135,11 +140,11 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
 
         // Phase 2: Scene classification (CLIP)
         if (labels.length > 0) {
-          const r = await startAutoTag(folderId, labels, threshold, mainWindow, date, signal)
+          const r = await startAutoTag(folderIds, labels, threshold, mainWindow, date, signal)
           totalTagged += r.tagged
           if (signal.aborted) {
             mainWindow.webContents.send(IPC_CHANNELS.AUTO_TAG_COMPLETE, {
-              folderId,
+              timelineId,
               tagged: totalTagged,
               cancelled: true
             })
@@ -148,14 +153,14 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
         }
 
         mainWindow.webContents.send(IPC_CHANNELS.AUTO_TAG_COMPLETE, {
-          folderId,
+          timelineId,
           tagged: totalTagged
         })
       })()
         .catch((err) => {
           console.error('Auto-tag error:', err)
           mainWindow.webContents.send(IPC_CHANNELS.AUTO_TAG_COMPLETE, {
-            folderId,
+            timelineId,
             tagged: 0,
             error: err instanceof Error ? err.message : String(err)
           })
@@ -176,24 +181,27 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     return db.getTagsForPhoto(photoId)
   })
 
-  ipcMain.handle(IPC_CHANNELS.GET_TAG_STATS, async (_event, folderId: number) => {
+  ipcMain.handle(IPC_CHANNELS.GET_TAG_STATS, async (_event, timelineId: number) => {
     await db.ensureDb()
-    return db.getTagStats(folderId)
+    const folderIds = db.resolveTimelineFolderIds(timelineId)
+    return db.getTagStats(folderIds)
   })
 
   ipcMain.handle(
     IPC_CHANNELS.GET_PHOTO_IDS_BY_TAG,
-    async (_event, folderId: number, tagName: string) => {
+    async (_event, timelineId: number, tagName: string) => {
       await db.ensureDb()
-      return db.getPhotoIdsByTag(folderId, tagName)
+      const folderIds = db.resolveTimelineFolderIds(timelineId)
+      return db.getPhotoIdsByTag(folderIds, tagName)
     }
   )
 
   ipcMain.handle(
     IPC_CHANNELS.GET_PHOTOS_BY_TAG,
-    async (_event, folderId: number, tagName: string) => {
+    async (_event, timelineId: number, tagName: string) => {
       await db.ensureDb()
-      return db.getPhotosByTag(folderId, tagName)
+      const folderIds = db.resolveTimelineFolderIds(timelineId)
+      return db.getPhotosByTag(folderIds, tagName)
     }
   )
 
@@ -222,9 +230,10 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
 
   ipcMain.handle(
     IPC_CHANNELS.FIND_DUPLICATES,
-    async (_event, folderId: number, date: string, threshold?: number) => {
+    async (_event, timelineId: number, date: string, threshold?: number) => {
       await db.ensureDb()
-      return findDuplicateGroups(folderId, date, threshold)
+      const folderIds = db.resolveTimelineFolderIds(timelineId)
+      return findDuplicateGroups(folderIds, date, threshold)
     }
   )
 
@@ -250,4 +259,34 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
       console.error('Failed to remove thumbnail:', err)
     }
   })
+
+  // --- Timeline handlers ---
+
+  ipcMain.handle(IPC_CHANNELS.GET_DEFAULT_TIMELINE, async () => {
+    await db.ensureDb()
+    return db.getOrCreateDefaultTimeline()
+  })
+
+  ipcMain.handle(IPC_CHANNELS.GET_TIMELINE_FOLDERS, async (_event, timelineId: number) => {
+    await db.ensureDb()
+    return db.getTimelineFolders(timelineId)
+  })
+
+  ipcMain.handle(
+    IPC_CHANNELS.ADD_FOLDER_TO_TIMELINE,
+    async (_event, timelineId: number, folderPath: string) => {
+      await db.ensureDb()
+      const folderId = db.upsertFolder(folderPath)
+      db.addFolderToTimeline(timelineId, folderId)
+      return { folderId }
+    }
+  )
+
+  ipcMain.handle(
+    IPC_CHANNELS.REMOVE_FOLDER_FROM_TIMELINE,
+    async (_event, timelineId: number, folderId: number) => {
+      await db.ensureDb()
+      db.removeFolderFromTimeline(timelineId, folderId)
+    }
+  )
 }

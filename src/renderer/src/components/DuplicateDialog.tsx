@@ -4,13 +4,13 @@ import type { DuplicateGroup } from '../types/models'
 type Phase = 'detecting' | 'review' | 'deleting' | 'done'
 
 interface Props {
-  folderId: number
+  timelineId: number
   date: string
   onClose: () => void
   onComplete: () => void
 }
 
-export function DuplicateDialog({ folderId, date, onClose, onComplete }: Props): JSX.Element {
+export function DuplicateDialog({ timelineId, date, onClose, onComplete }: Props): JSX.Element {
   const [phase, setPhase] = useState<Phase>('detecting')
   const [groups, setGroups] = useState<DuplicateGroup[]>([])
   const [thumbUrls, setThumbUrls] = useState<Record<number, string>>({})
@@ -23,7 +23,7 @@ export function DuplicateDialog({ folderId, date, onClose, onComplete }: Props):
     let cancelled = false
     ;(async (): Promise<void> => {
       try {
-        const result = await window.api.findDuplicates(folderId, date)
+        const result = await window.api.findDuplicates(timelineId, date)
         if (cancelled) return
 
         if (result.length === 0) {
@@ -54,7 +54,7 @@ export function DuplicateDialog({ folderId, date, onClose, onComplete }: Props):
     return () => {
       cancelled = true
     }
-  }, [folderId, date])
+  }, [timelineId, date])
 
   const toggleSelect = (photoId: number): void => {
     setSelected((prev) => {

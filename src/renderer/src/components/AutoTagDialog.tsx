@@ -15,7 +15,7 @@ const SCENE_LABELS: TagLabelDef[] = [
 ]
 
 interface Props {
-  folderId: number
+  timelineId: number
   date?: string
   onClose: () => void
   onComplete: () => void
@@ -38,7 +38,7 @@ function getProgressLabel(p: AutoTagProgress): string {
   }
 }
 
-export function AutoTagDialog({ folderId, date, onClose, onComplete }: Props): JSX.Element {
+export function AutoTagDialog({ timelineId, date, onClose, onComplete }: Props): JSX.Element {
   const [rotationEnabled, setRotationEnabled] = useState(true)
   const [rotationThreshold, setRotationThreshold] = useState(0.6)
   const [detectEnabled, setDetectEnabled] = useState(true)
@@ -113,14 +113,14 @@ export function AutoTagDialog({ folderId, date, onClose, onComplete }: Props): J
       setProgress(p as AutoTagProgress)
     })
     const unsubComplete = window.api.onAutoTagComplete((r) => {
-      const res = r as { folderId: number; tagged: number; error?: string; cancelled?: boolean }
+      const res = r as { timelineId: number; tagged: number; error?: string; cancelled?: boolean }
       setResult({ tagged: res.tagged, error: res.error, cancelled: res.cancelled })
       setIsRunning(false)
     })
     cleanupRef.current.push(unsubProgress, unsubComplete)
 
     await window.api.startAutoTag(
-      folderId,
+      timelineId,
       selectedLabels,
       sceneThreshold,
       detectEnabled,

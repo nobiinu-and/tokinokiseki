@@ -39,7 +39,7 @@ Renderer (src/renderer/src/)
 ├── screens/          — FolderSelect, Timeline, DateDetail, Slideshow
 ├── components/       — DateCard, PhotoThumbnail, Lightbox, TopBar, ScanProgress
 ├── hooks/            — useTimeline, usePhotos, useScan, useSlideshow
-├── context/          — AppContext（currentFolder, isScanning）
+├── context/          — AppContext（timelineId, isScanning）
 └── types/            — IPCチャンネル名、モデル定義、electron.d.ts
 ```
 
@@ -74,6 +74,15 @@ Worker は `electron.vite.config.ts` で別エントリポイントとして定�
 ### サムネイル命名規則
 
 ファイルパス → MD5ハッシュ → `userData/thumbnails/{hash}.jpg`。長辺300px、JPEG品質80。
+
+### タイムライン・フォルダ管理
+
+複数フォルダの写真を1つのタイムラインに統合表示する設計:
+- `timelines` テーブル + `timeline_folders` テーブルでN:M関係
+- レンダラーは `timelineId` でAPIを呼ぶ。mainプロセスが `timelineId → folderIds[]` に解決
+- DB関数は `folderIds: number[]` を受け取り `WHERE folder_id IN (...)` で検索
+- スキャンは引き続きフォルダ単位（`scanFolder(path)`）。スキャン後にフォルダをタイムラインに追加
+- 初回起動時にデフォルトタイムライン「メイン」を自動作成、既存フォルダをマイグレーション
 
 ### 日付カードグルーピング
 

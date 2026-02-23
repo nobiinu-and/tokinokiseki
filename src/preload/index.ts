@@ -24,19 +24,19 @@ contextBridge.exposeInMainWorld('api', {
     }
   },
 
-  getDateSummary: (folderId: number) =>
-    ipcRenderer.invoke(IPC_CHANNELS.GET_DATE_SUMMARY, folderId),
+  getDateSummary: (timelineId: number) =>
+    ipcRenderer.invoke(IPC_CHANNELS.GET_DATE_SUMMARY, timelineId),
 
-  getPhotosByDate: (folderId: number, date: string) =>
-    ipcRenderer.invoke(IPC_CHANNELS.GET_PHOTOS_BY_DATE, folderId, date),
+  getPhotosByDate: (timelineId: number, date: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.GET_PHOTOS_BY_DATE, timelineId, date),
 
   toggleBest: (photoId: number) => ipcRenderer.invoke(IPC_CHANNELS.TOGGLE_BEST, photoId),
 
-  getBestPhotos: (folderId: number) =>
-    ipcRenderer.invoke(IPC_CHANNELS.GET_BEST_PHOTOS, folderId),
+  getBestPhotos: (timelineId: number) =>
+    ipcRenderer.invoke(IPC_CHANNELS.GET_BEST_PHOTOS, timelineId),
 
-  getBestPhotosForDate: (folderId: number, date: string) =>
-    ipcRenderer.invoke(IPC_CHANNELS.GET_BEST_PHOTOS_FOR_DATE, folderId, date),
+  getBestPhotosForDate: (timelineId: number, date: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.GET_BEST_PHOTOS_FOR_DATE, timelineId, date),
 
   getThumbnailPath: (photoId: number) =>
     ipcRenderer.invoke(IPC_CHANNELS.GET_THUMBNAIL_PATH, photoId),
@@ -46,8 +46,8 @@ contextBridge.exposeInMainWorld('api', {
 
   // --- Tags ---
 
-  startAutoTag: (folderId: number, labels: { label: string; display: string }[], threshold: number, detectEnabled: boolean, detectThreshold: number, rotationEnabled: boolean, rotationThreshold: number, date?: string) =>
-    ipcRenderer.invoke(IPC_CHANNELS.START_AUTO_TAG, folderId, labels, threshold, detectEnabled, detectThreshold, rotationEnabled, rotationThreshold, date),
+  startAutoTag: (timelineId: number, labels: { label: string; display: string }[], threshold: number, detectEnabled: boolean, detectThreshold: number, rotationEnabled: boolean, rotationThreshold: number, date?: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.START_AUTO_TAG, timelineId, labels, threshold, detectEnabled, detectThreshold, rotationEnabled, rotationThreshold, date),
 
   cancelAutoTag: () => ipcRenderer.invoke(IPC_CHANNELS.CANCEL_AUTO_TAG),
 
@@ -70,14 +70,14 @@ contextBridge.exposeInMainWorld('api', {
   getTagsForPhoto: (photoId: number) =>
     ipcRenderer.invoke(IPC_CHANNELS.GET_TAGS_FOR_PHOTO, photoId),
 
-  getTagStats: (folderId: number) =>
-    ipcRenderer.invoke(IPC_CHANNELS.GET_TAG_STATS, folderId),
+  getTagStats: (timelineId: number) =>
+    ipcRenderer.invoke(IPC_CHANNELS.GET_TAG_STATS, timelineId),
 
-  getPhotoIdsByTag: (folderId: number, tagName: string) =>
-    ipcRenderer.invoke(IPC_CHANNELS.GET_PHOTO_IDS_BY_TAG, folderId, tagName),
+  getPhotoIdsByTag: (timelineId: number, tagName: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.GET_PHOTO_IDS_BY_TAG, timelineId, tagName),
 
-  getPhotosByTag: (folderId: number, tagName: string) =>
-    ipcRenderer.invoke(IPC_CHANNELS.GET_PHOTOS_BY_TAG, folderId, tagName),
+  getPhotosByTag: (timelineId: number, tagName: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.GET_PHOTOS_BY_TAG, timelineId, tagName),
 
   addTagToPhoto: (photoId: number, tagName: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.ADD_TAG_TO_PHOTO, photoId, tagName),
@@ -87,8 +87,21 @@ contextBridge.exposeInMainWorld('api', {
 
   // --- Duplicates ---
 
-  findDuplicates: (folderId: number, date: string, threshold?: number) =>
-    ipcRenderer.invoke(IPC_CHANNELS.FIND_DUPLICATES, folderId, date, threshold),
+  findDuplicates: (timelineId: number, date: string, threshold?: number) =>
+    ipcRenderer.invoke(IPC_CHANNELS.FIND_DUPLICATES, timelineId, date, threshold),
 
-  deletePhoto: (photoId: number) => ipcRenderer.invoke(IPC_CHANNELS.DELETE_PHOTO, photoId)
+  deletePhoto: (photoId: number) => ipcRenderer.invoke(IPC_CHANNELS.DELETE_PHOTO, photoId),
+
+  // --- Timeline ---
+
+  getDefaultTimeline: () => ipcRenderer.invoke(IPC_CHANNELS.GET_DEFAULT_TIMELINE),
+
+  getTimelineFolders: (timelineId: number) =>
+    ipcRenderer.invoke(IPC_CHANNELS.GET_TIMELINE_FOLDERS, timelineId),
+
+  addFolderToTimeline: (timelineId: number, folderPath: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.ADD_FOLDER_TO_TIMELINE, timelineId, folderPath),
+
+  removeFolderFromTimeline: (timelineId: number, folderId: number) =>
+    ipcRenderer.invoke(IPC_CHANNELS.REMOVE_FOLDER_FROM_TIMELINE, timelineId, folderId)
 })

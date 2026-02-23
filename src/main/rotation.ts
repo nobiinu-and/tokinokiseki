@@ -8,14 +8,14 @@ import * as db from './database'
 import { getThumbnailPath, regenerateThumbnail } from './thumbnail'
 
 export async function startRotationCheck(
-  folderId: number,
+  folderIds: number[],
   threshold: number,
   mainWindow: BrowserWindow,
   date?: string,
   signal?: AbortSignal
 ): Promise<{ checked: number; corrected: number }> {
   await db.ensureDb()
-  const photos = db.getPhotosNeedingRotationCheck(folderId, date)
+  const photos = db.getPhotosNeedingRotationCheck(folderIds, date)
   const total = photos.length
 
   if (total === 0) {
