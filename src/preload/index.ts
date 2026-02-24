@@ -128,6 +128,9 @@ contextBridge.exposeInMainWorld('api', {
   addDateToEvent: (eventId: number, date: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.ADD_DATE_TO_EVENT, eventId, date),
 
+  addDatesToEvent: (eventId: number, dates: string[]) =>
+    ipcRenderer.invoke(IPC_CHANNELS.ADD_DATES_TO_EVENT, eventId, dates),
+
   removeDateFromEvent: (eventId: number, date: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.REMOVE_DATE_FROM_EVENT, eventId, date),
 

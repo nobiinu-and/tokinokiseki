@@ -47,6 +47,10 @@ export function EventTitleDialog({
       .then((generated) => {
         setTitle(generated)
       })
+      .catch((err) => {
+        console.error('Failed to generate event title:', err)
+        setTitle('新しいできごと')
+      })
       .finally(() => setLoading(false))
   }, [timelineId, mode, startDate, endDate, dates])
 

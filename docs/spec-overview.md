@@ -23,9 +23,9 @@ AI（CLIP / YOLO）による自動タグ付け・回転補正・重複検出も�
 ```
 フォルダ選択 (/)
   ↓
-イベント一覧 (/events)  ──→  タグ検索 (/tags)
+タイムライン (/timeline)  ──→  タグ検索 (/tags)
   ↓
-イベント詳細 (/events/:date)
+日付詳細 (/timeline/:date)
   ├──→ Lightbox（写真拡大表示）
   ├──→ 自動タグ付けダイアログ
   ├──→ 重複チェックダイアログ
@@ -47,17 +47,17 @@ AI（CLIP / YOLO）による自動タグ付け・回転補正・重複検出も�
 - **進捗表示**: ファイル検出フェーズ → 処理フェーズのカウンタ + プログレスバー
 - **バッチ保存**: 100件ごとに DB をディスク保存
 
-## 2. イベント一覧
+## 2. タイムライン
 
 写真を日付でグルーピングし、カレンダー風に一覧表示する。
 
-- **イベント判定**: 3枚以上の日は「イベント」として大きいカード表示、1〜2枚はコンパクト表示
+- **日付カード**: 3枚以上の日は大きいカード表示、1〜2枚はコンパクト表示
 - **年月セクション**: 「2024年8月」のようなヘッダーでグループ化
-- **旅行検出**: 2日以内の間隔で連続するイベント日を「旅行」として視覚的にグループ化（サイドバー/背景色）
+- **できごと**: 日付を「できごと」としてグルーピング（期間型 / 日付リスト型）
 - **ジャンプバー**: 年を選択してスクロール位置を即座に移動
-- **仮想スクロール**: GroupedVirtuoso で数千イベントも快適に描画
+- **仮想スクロール**: GroupedVirtuoso で数千日分も快適に描画
 
-## 3. イベント詳細（写真グリッド）
+## 3. 日付詳細（写真グリッド）
 
 特定の日付の写真をグリッド表示する。
 
@@ -161,11 +161,15 @@ EXIF に方向情報がない写真の向きを自動検出・補正する。
 ## データベーススキーマ
 
 ```sql
-folders (id, path, last_scanned_at)
-photos  (id, folder_id, file_path, file_name, taken_at, file_modified_at,
-         width, height, is_best, orientation_correction, created_at)
-tags    (id, name)
+folders    (id, path, last_scanned_at)
+photos     (id, folder_id, file_path, file_name, taken_at, file_modified_at,
+            width, height, is_best, orientation_correction, created_at)
+tags       (id, name)
 photo_tags (id, photo_id, tag_id, confidence)
+timelines  (id, name, created_at)
+timeline_folders (timeline_id, folder_id)
+events     (id, timeline_id, title, type, start_date, end_date, created_at, updated_at)
+event_dates (event_id, date)
 ```
 
 - `photo_tags.confidence`: 自動タグはモデルのスコア、手動タグは 1.0

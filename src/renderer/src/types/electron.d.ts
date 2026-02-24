@@ -40,6 +40,7 @@ export interface ElectronAPI {
   getEventSuggestions(timelineId: number): Promise<EventSuggestion[]>
   generateEventTitle(timelineId: number, startDate: string, endDate: string): Promise<string>
   addDateToEvent(eventId: number, date: string): Promise<void>
+  addDatesToEvent(eventId: number, dates: string[]): Promise<void>
   removeDateFromEvent(eventId: number, date: string): Promise<boolean>
   generateEventTitleForDates(timelineId: number, dates: string[]): Promise<string>
 }

@@ -350,6 +350,14 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
   )
 
   ipcMain.handle(
+    IPC_CHANNELS.ADD_DATES_TO_EVENT,
+    async (_event, eventId: number, dates: string[]) => {
+      await db.ensureDb()
+      db.addDatesToEvent(eventId, dates)
+    }
+  )
+
+  ipcMain.handle(
     IPC_CHANNELS.REMOVE_DATE_FROM_EVENT,
     async (_event, eventId: number, date: string) => {
       await db.ensureDb()

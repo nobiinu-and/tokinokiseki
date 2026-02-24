@@ -160,6 +160,9 @@ export async function initDatabase(): Promise<void> {
     }
 
     // --- Event dates table (for dates-type events) ---
+    const hasEventDatesTable =
+      db.exec("SELECT 1 FROM sqlite_master WHERE type='table' AND name='event_dates'").length > 0
+
     db.run(`
       CREATE TABLE IF NOT EXISTS event_dates (
         event_id INTEGER NOT NULL,
@@ -171,7 +174,7 @@ export async function initDatabase(): Promise<void> {
     db.run('CREATE INDEX IF NOT EXISTS idx_event_dates_event ON event_dates(event_id)')
 
     // Only save if schema was actually modified (first run or migration)
-    if (isNewDb || !hasOrientationCol || !hasTimelines || !hasEventTypeCol) {
+    if (isNewDb || !hasOrientationCol || !hasTimelines || !hasEventTypeCol || !hasEventDatesTable) {
       saveDatabase()
     }
   })()
@@ -909,15 +912,15 @@ export function computeEventSuggestions(
     return calendarDays >= minDays
   })
 
-  // Exclude suggestions that exactly match confirmed events
+  // Exclude suggestions that overlap any confirmed event
   const confirmedEvents = getEventsByTimeline(timelineId)
 
   const suggestions: EventSuggestion[] = []
   for (const g of filtered) {
-    const isExactMatch = confirmedEvents.some(
-      (e) => e.startDate === g.start && e.endDate === g.end
+    const isOverlapping = confirmedEvents.some(
+      (e) => !(e.endDate < g.start || e.startDate > g.end)
     )
-    if (isExactMatch) continue
+    if (isOverlapping) continue
 
     const totalPhotos = getEventPhotoCount(folderIds, g.start, g.end)
     suggestions.push({ startDate: g.start, endDate: g.end, totalPhotos })
@@ -996,6 +999,16 @@ function recalcEventDateRange(d: SqlJsDatabase, eventId: number): void {
 export function addDateToEvent(eventId: number, date: string): void {
   const d = getDb()
   d.run('INSERT OR IGNORE INTO event_dates (event_id, date) VALUES (?, ?)', [eventId, date])
+  recalcEventDateRange(d, eventId)
+  saveDatabase()
+}
+
+export function addDatesToEvent(eventId: number, dates: string[]): void {
+  if (dates.length === 0) return
+  const d = getDb()
+  for (const date of dates) {
+    d.run('INSERT OR IGNORE INTO event_dates (event_id, date) VALUES (?, ?)', [eventId, date])
+  }
   recalcEventDateRange(d, eventId)
   saveDatabase()
 }

@@ -41,6 +41,7 @@ export const IPC_CHANNELS = {
   GET_EVENT_SUGGESTIONS: 'events:getSuggestions',
   GENERATE_EVENT_TITLE: 'events:generateTitle',
   ADD_DATE_TO_EVENT: 'events:addDate',
+  ADD_DATES_TO_EVENT: 'events:addDates',
   REMOVE_DATE_FROM_EVENT: 'events:removeDate',
   GENERATE_EVENT_TITLE_FOR_DATES: 'events:generateTitleForDates'
 } as const

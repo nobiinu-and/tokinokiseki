@@ -78,11 +78,10 @@
 
 | タイミング | 処理 |
 |---|---|
-| フォルダスキャン完了時 | サジェストを計算してメモリにキャッシュ |
-| できごと確定/削除時 | 重複チェックのためサジェストを再計算 |
-| タイムライン表示時 | キャッシュ済みの結果を使用 |
+| タイムライン表示時 | `getEventSuggestions` でサジェストを都度計算し表示 |
+| できごと確定/削除時 | タイムラインをリフレッシュし、サジェストを再計算 |
 
-サジェストは DB に保存しない（揮発的）。確定時に初めて永続化する。
+サジェストは DB に保存しない（揮発的）。できごとの確定内容のみを永続化する。
 
 ---
 
@@ -228,39 +227,27 @@ Step 3: 確定
 ```sql
 CREATE TABLE events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timeline_id INTEGER NOT NULL,
     title TEXT NOT NULL,
+    type TEXT NOT NULL DEFAULT 'range',    -- 'range' | 'dates'
     start_date TEXT NOT NULL,              -- 'YYYY-MM-DD'
     end_date TEXT NOT NULL,                -- 'YYYY-MM-DD'
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (timeline_id) REFERENCES timelines(id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_events_dates ON events(start_date, end_date);
+CREATE TABLE event_dates (
+    event_id INTEGER NOT NULL,
+    date TEXT NOT NULL,                    -- 'YYYY-MM-DD'
+    PRIMARY KEY (event_id, date),
+    FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
+);
 ```
 
-`start_date` / `end_date` の範囲だけ保持する。
-含まれる写真は `photos` テーブルから動的に取得。
-
-```sql
--- できごとに含まれる日付と写真枚数を取得
-SELECT DATE(taken_at) as event_date, COUNT(*) as photo_count
-FROM photos
-WHERE DATE(taken_at) BETWEEN ? AND ?
-GROUP BY DATE(taken_at)
-ORDER BY event_date;
-```
-
-### 重複チェック
-
-できごとの範囲が重複してはならない。
-
-```sql
--- 新しいできごと (new_start, new_end) が既存と重複するか
-SELECT COUNT(*) FROM events
-WHERE start_date <= ? AND end_date >= ?;
--- パラメータ: (new_end, new_start)
--- 結果が 0 なら重複なし
-```
+- **Range型**: `start_date`〜`end_date` の範囲で写真を動的に取得
+- **Dates型**: `event_dates` に個別日付を保持。`start_date`/`end_date` は min/max から自動同期（クエリ効率のため）
+- できごとの重複は許可（同じ日が複数のできごとに含まれてOK）
 
 ---
 

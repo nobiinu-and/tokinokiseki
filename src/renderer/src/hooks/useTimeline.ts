@@ -49,7 +49,7 @@ function computeYearMonthGroups(items: TimelineItem[]): YearMonthGroup[] {
 
   for (const item of items) {
     const date =
-      item.type === 'date-card' ? item.card.date : item.suggestion.startDate
+      item.type === 'date-card' ? item.card.date : item.suggestion.endDate
 
     const d = new Date(date + 'T00:00:00')
     const y = d.getFullYear()
@@ -150,6 +150,9 @@ export function useTimeline(timelineId: number | null): UseTimelineResult {
 
         setItems(timelineItems)
         setGroups(computeYearMonthGroups(timelineItems))
+      })
+      .catch((err) => {
+        console.error('Failed to load timeline:', err)
       })
       .finally(() => setLoading(false))
   }, [timelineId, dismissedSuggestions])

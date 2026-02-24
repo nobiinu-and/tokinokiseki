@@ -220,7 +220,7 @@ export function TimelineScreen(): JSX.Element {
   const handleAddDatesConfirm = useCallback(() => {
     if (!eventSelect || eventSelect.mode !== 'add-dates') return
     const { eventId, selectedDates } = eventSelect
-    Promise.all(selectedDates.map((date) => window.api.addDateToEvent(eventId, date)))
+    window.api.addDatesToEvent(eventId, selectedDates)
       .then(() => {
         setEventSelect(null)
         refresh()
