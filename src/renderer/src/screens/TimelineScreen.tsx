@@ -315,16 +315,15 @@ export function TimelineScreen(): JSX.Element {
   )
 
   if (!timelineId) {
-    navigate('/')
-    return <></>
+    return (
+      <div className="screen screen-center">
+        <p>タイムラインが見つかりません</p>
+      </div>
+    )
   }
 
   const handleSlideshow = (): void => {
     navigate('/slideshow')
-  }
-
-  const handleSettings = (): void => {
-    navigate('/', { state: { fromBack: true } })
   }
 
   const activeItems = eventFilter ? filteredItems : items
@@ -371,7 +370,7 @@ export function TimelineScreen(): JSX.Element {
     <div className="screen timeline-screen">
       <TopBar
         title={eventFilter ? eventFilter.title : 'タイムライン'}
-        onBack={eventFilter ? () => setFilter(null) : handleSettings}
+        onBack={eventFilter ? () => setFilter(null) : undefined}
         actions={
           eventFilter ? (
             <div className="topbar-actions-group">
@@ -418,9 +417,6 @@ export function TimelineScreen(): JSX.Element {
                   </div>
                 )}
               </div>
-              <button className="btn btn-secondary" onClick={() => navigate('/tags')}>
-                タグ検索
-              </button>
               <button className="btn btn-secondary" onClick={() => setShowAutoTag(true)}>
                 タグ付け
               </button>
@@ -473,9 +469,9 @@ export function TimelineScreen(): JSX.Element {
       ) : activeItems.length === 0 ? (
         <div className="screen-center">
           <p>写真が見つかりませんでした</p>
-          <button className="btn btn-primary" onClick={handleSettings}>
-            フォルダを選択
-          </button>
+          <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+            ホーム画面からフォルダを追加してください
+          </p>
         </div>
       ) : (
         <div className="timeline-container">
