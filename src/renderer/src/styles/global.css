@@ -1,21 +1,31 @@
 :root {
-  --bg-primary: #1a1a2e;
-  --bg-secondary: #16213e;
-  --bg-card: #0f3460;
-  --bg-card-hover: #1a4a7a;
-  --text-primary: #e0e0e0;
-  --text-secondary: #a0a0a0;
-  --text-muted: #6a6a8a;
-  --accent: #e94560;
-  --accent-gold: #f5c518;
-  --accent-gold-dim: #a38a10;
-  --border-radius: 8px;
-  --border-radius-sm: 4px;
+  /* カラーパレット (Section 4.1) */
+  --bg-primary: #FFF8F0;
+  --bg-secondary: #FFFFFF;
+  --bg-card: rgba(255, 255, 255, 0.85);
+  --bg-card-hover: rgba(255, 255, 255, 1);
+  --text-primary: #3E2723;
+  --text-secondary: #5D4037;
+  --text-muted: #8D6E63;
+  --accent: #FF7043;
+  --accent-gold: #F9A825;
+  --accent-gold-dim: #F57F17;
+
+  /* 角丸 */
+  --border-radius: 14px;
+  --border-radius-sm: 8px;
+
+  /* spacing */
   --spacing-xs: 4px;
   --spacing-sm: 8px;
   --spacing-md: 16px;
   --spacing-lg: 24px;
   --spacing-xl: 32px;
+
+  /* ライトテーマ用セマンティック変数 */
+  --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  --card-border: 1px solid rgba(0, 0, 0, 0.06);
+  --modal-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
 }
 
 * {
@@ -25,7 +35,7 @@
 }
 
 body {
-  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+  font-family: 'Noto Sans JP', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
   background: var(--bg-primary);
   color: var(--text-primary);
   overflow: hidden;
@@ -77,11 +87,12 @@ body {
   padding: var(--spacing-sm) var(--spacing-md);
   font-size: 14px;
   cursor: pointer;
-  transition: background-color 0.15s, opacity 0.15s;
+  transition: background-color 0.15s, opacity 0.15s, transform 0.15s;
 }
 
 .btn:hover {
   opacity: 0.9;
+  transform: scale(0.98);
 }
 
 .btn:disabled {
@@ -95,8 +106,9 @@ body {
 }
 
 .btn-secondary {
-  background: var(--bg-card);
+  background: #FFFFFF;
   color: var(--text-primary);
+  border: 1px solid rgba(0, 0, 0, 0.12);
 }
 
 .btn-accent {
@@ -107,12 +119,13 @@ body {
 .btn-ghost {
   background: transparent;
   color: var(--text-secondary);
-  border: 1px solid var(--text-muted);
+  border: 1px solid rgba(0, 0, 0, 0.15);
 }
 
 .btn-large {
   padding: var(--spacing-md) var(--spacing-xl);
   font-size: 18px;
+  border-radius: 20px;
 }
 
 /* ========== TopBar ========== */
@@ -123,7 +136,7 @@ body {
   justify-content: space-between;
   padding: var(--spacing-sm) var(--spacing-md);
   background: var(--bg-secondary);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
   flex-shrink: 0;
   height: 52px;
 }
@@ -148,7 +161,7 @@ body {
 
 .topbar-back:hover {
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(0, 0, 0, 0.05);
 }
 
 .topbar-title {
@@ -215,6 +228,8 @@ body {
   background: var(--bg-secondary);
   border-radius: var(--border-radius);
   margin-bottom: var(--spacing-sm);
+  box-shadow: var(--card-shadow);
+  border: var(--card-border);
 }
 
 .folder-path {
@@ -323,9 +338,9 @@ body {
   font-size: 13px;
   font-weight: 600;
   color: var(--text-secondary);
-  background: rgba(26, 26, 46, 0.85);
+  background: rgba(255, 248, 240, 0.85);
   backdrop-filter: blur(8px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 /* Jump Bar */
@@ -340,7 +355,7 @@ body {
   gap: 4px;
   z-index: 2;
   padding: var(--spacing-sm) var(--spacing-xs);
-  background: rgba(15, 52, 96, 0.6);
+  background: rgba(255, 255, 255, 0.8);
   border-radius: var(--border-radius);
   backdrop-filter: blur(4px);
 }
@@ -360,7 +375,7 @@ body {
 
 .jump-bar-item:hover {
   color: var(--accent);
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.05);
 }
 
 /* ========== Date Card ========== */
@@ -382,6 +397,8 @@ body {
   border-radius: var(--border-radius);
   overflow: hidden;
   min-height: 100px;
+  box-shadow: var(--card-shadow);
+  border: var(--card-border);
 }
 
 .date-card-thumb {
@@ -421,6 +438,8 @@ body {
   gap: var(--spacing-sm);
   background: var(--bg-secondary);
   border-radius: var(--border-radius);
+  box-shadow: var(--card-shadow);
+  border: var(--card-border);
 }
 
 .date-card-thumb-small {
@@ -842,7 +861,7 @@ body {
 .dialog-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.4);
   z-index: 3000;
   display: flex;
   align-items: center;
@@ -850,14 +869,15 @@ body {
 }
 
 .dialog {
-  background: var(--bg-secondary);
+  background: #FFFFFF;
   border-radius: var(--border-radius);
   width: 560px;
   max-width: 90vw;
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--modal-shadow);
+  border: var(--card-border);
 }
 
 .dialog-header {
@@ -865,7 +885,7 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: var(--spacing-md);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .dialog-header h2 {
@@ -898,7 +918,7 @@ body {
   justify-content: flex-end;
   gap: var(--spacing-sm);
   padding: var(--spacing-md);
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 /* ========== AutoTag Dialog ========== */
@@ -929,7 +949,7 @@ body {
   width: 44px;
   height: 22px;
   appearance: none;
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.15);
   border-radius: 11px;
   cursor: pointer;
   transition: background 0.2s;
@@ -1022,7 +1042,7 @@ body {
 .autotag-input {
   flex: 1;
   background: var(--bg-primary);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.1);
   border-radius: var(--border-radius-sm);
   padding: var(--spacing-xs) var(--spacing-sm);
   color: var(--text-primary);
@@ -1073,6 +1093,14 @@ body {
 .autotag-result-error {
   font-size: 14px;
   color: var(--accent);
+}
+
+.autotag-slider-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
 }
 
 /* ========== Duplicate Dialog ========== */
@@ -1141,7 +1169,7 @@ body {
 .dup-photo-delete-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(233, 69, 96, 0.6);
+  background: rgba(255, 112, 67, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1177,7 +1205,7 @@ body {
   gap: var(--spacing-xs);
   padding: var(--spacing-sm) var(--spacing-md);
   background: var(--bg-secondary);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
   flex-shrink: 0;
   max-height: 120px;
   overflow-y: auto;
@@ -1195,7 +1223,7 @@ body {
   gap: var(--spacing-xs);
   padding: 4px 10px;
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(0, 0, 0, 0.08);
   background: var(--bg-card);
   color: var(--text-primary);
   font-size: 13px;
@@ -1240,9 +1268,9 @@ body {
   font-size: 13px;
   font-weight: 600;
   color: var(--text-secondary);
-  background: rgba(26, 26, 46, 0.85);
+  background: rgba(255, 248, 240, 0.85);
   backdrop-filter: blur(8px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .tag-search-photo-grid {
@@ -1265,8 +1293,8 @@ body {
   font-size: 11px;
   padding: 1px 6px;
   border-radius: 3px;
-  background: rgba(59, 130, 246, 0.2);
-  color: #93c5fd;
+  background: rgba(59, 130, 246, 0.12);
+  color: #1565C0;
 }
 
 .date-card-event-label.clickable {
@@ -1285,7 +1313,7 @@ body {
   color: var(--text-secondary);
   font-size: 0.85rem;
   text-align: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
   flex-shrink: 0;
 }
 
@@ -1305,9 +1333,9 @@ body {
   gap: 8px;
   padding: 10px 16px;
   margin: 4px 0;
-  border: 1px dashed rgba(59, 130, 246, 0.4);
+  border: 1px dashed rgba(59, 130, 246, 0.3);
   border-radius: 8px;
-  background: rgba(59, 130, 246, 0.05);
+  background: rgba(59, 130, 246, 0.06);
   font-size: 13px;
 }
 
@@ -1330,8 +1358,8 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 8px 16px;
-  background: rgba(245, 197, 24, 0.1);
-  border-bottom: 1px solid rgba(245, 197, 24, 0.3);
+  background: rgba(249, 168, 37, 0.08);
+  border-bottom: 1px solid rgba(249, 168, 37, 0.25);
   flex-shrink: 0;
   font-size: 13px;
 }
@@ -1443,13 +1471,13 @@ body {
   position: absolute;
   top: 100%;
   right: 0;
-  background: var(--bg-secondary);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.1);
   border-radius: var(--border-radius);
   padding: 4px 0;
   z-index: 10;
   min-width: 200px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .event-create-menu button {
@@ -1465,7 +1493,7 @@ body {
 }
 
 .event-create-menu button:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(0, 0, 0, 0.05);
 }
 
 /* ========== Event Date Chips (EventManager dates type) ========== */
@@ -1484,8 +1512,8 @@ body {
   font-size: 12px;
   padding: 2px 8px;
   border-radius: 12px;
-  background: rgba(59, 130, 246, 0.15);
-  color: #93c5fd;
+  background: rgba(59, 130, 246, 0.1);
+  color: #1565C0;
 }
 
 .event-date-chip-remove {
@@ -1508,7 +1536,7 @@ body {
   font-size: 10px;
   padding: 1px 6px;
   border-radius: 3px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.06);
   color: var(--text-muted);
 }
 
@@ -1523,7 +1551,7 @@ body {
 
 .tab-bar {
   display: flex;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
   background: var(--bg-secondary);
   flex-shrink: 0;
 }
@@ -1541,7 +1569,7 @@ body {
 
 .tab-bar-item:hover {
   color: var(--text-secondary);
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(0, 0, 0, 0.03);
 }
 
 .tab-bar-item-active {
@@ -1582,7 +1610,8 @@ body {
   padding: var(--spacing-md);
   background: var(--bg-card);
   border-radius: var(--border-radius);
-  border: none;
+  border: var(--card-border);
+  box-shadow: var(--card-shadow);
   cursor: pointer;
   transition: background-color 0.15s;
   color: var(--text-primary);
@@ -1646,7 +1675,8 @@ body {
   padding: var(--spacing-sm) var(--spacing-md);
   background: var(--bg-card);
   border-radius: var(--border-radius);
-  border: none;
+  border: var(--card-border);
+  box-shadow: var(--card-shadow);
   cursor: pointer;
   transition: background-color 0.15s;
   text-align: left;
@@ -1682,7 +1712,8 @@ body {
   padding: var(--spacing-md);
   background: var(--bg-card);
   border-radius: var(--border-radius);
-  border: none;
+  border: var(--card-border);
+  box-shadow: var(--card-shadow);
   cursor: pointer;
   transition: background-color 0.15s;
   width: 100%;

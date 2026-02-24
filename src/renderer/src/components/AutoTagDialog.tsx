@@ -26,15 +26,15 @@ function getProgressLabel(p: AutoTagProgress): string {
     case 'filtering_exif':
       return `EXIF情報を確認中... ${p.current} / ${p.total} 枚`
     case 'checking_rotation':
-      return `回転補正チェック中... ${p.current} / ${p.total} 枚`
+      return `写真の向きを確認しています... ${p.current} / ${p.total} 枚`
     case 'loading_detect_model':
-      return '物体検出モデルを読み込み中...(初回は数分かかります)'
+      return '写っているものを探す準備中...(初回は数分かかります)'
     case 'detecting':
-      return `物体検出中... ${p.current} / ${p.total} 枚`
+      return `写っているものを探しています... ${p.current} / ${p.total} 枚`
     case 'loading_model':
-      return 'シーン分類モデルを読み込み中...(初回は数分かかります)'
+      return 'シーン分類の準備中...(初回は数分かかります)'
     case 'classifying':
-      return `シーン分類中... ${p.current} / ${p.total} 枚`
+      return `シーンを分類しています... ${p.current} / ${p.total} 枚`
   }
 }
 
@@ -169,7 +169,7 @@ export function AutoTagDialog({ timelineId, date, onClose, onComplete }: Props):
             {/* Rotation Correction Section */}
             <div className="autotag-section">
               <div className="autotag-section-header">
-                <h3>回転補正 (CLIP)</h3>
+                <h3>写真の向きを自動で直す</h3>
                 <input
                   type="checkbox"
                   className="autotag-toggle"
@@ -182,7 +182,7 @@ export function AutoTagDialog({ timelineId, date, onClose, onComplete }: Props):
                   EXIF情報がない写真の向きを自動判定して補正します
                 </div>
                 <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                  閾値: {Math.round(rotationThreshold * 100)}%
+                  精度
                 </div>
                 <input
                   type="range"
@@ -193,13 +193,17 @@ export function AutoTagDialog({ timelineId, date, onClose, onComplete }: Props):
                   onChange={(e) => setRotationThreshold(parseFloat(e.target.value))}
                   className="autotag-slider"
                 />
+                <div className="autotag-slider-labels">
+                  <span>あいまい</span>
+                  <span>厳密</span>
+                </div>
               </div>
             </div>
 
             {/* Object Detection Section */}
             <div className="autotag-section">
               <div className="autotag-section-header">
-                <h3>物体検出 (YOLO)</h3>
+                <h3>写っているものを見つける</h3>
                 <input
                   type="checkbox"
                   className="autotag-toggle"
@@ -209,10 +213,10 @@ export function AutoTagDialog({ timelineId, date, onClose, onComplete }: Props):
               </div>
               <div className={detectEnabled ? '' : 'autotag-section-disabled'}>
                 <div className="autotag-threshold-hint" style={{ marginBottom: 8 }}>
-                  写真内の物体 (人物・動物・車 等) を自動検出してタグ付けします
+                  人物・動物・食べ物・乗り物などを自動検出します
                 </div>
                 <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                  閾値: {Math.round(detectThreshold * 100)}%
+                  精度
                 </div>
                 <input
                   type="range"
@@ -223,13 +227,17 @@ export function AutoTagDialog({ timelineId, date, onClose, onComplete }: Props):
                   onChange={(e) => setDetectThreshold(parseFloat(e.target.value))}
                   className="autotag-slider"
                 />
+                <div className="autotag-slider-labels">
+                  <span>あいまい</span>
+                  <span>厳密</span>
+                </div>
               </div>
             </div>
 
             {/* Scene Classification Section */}
             <div className="autotag-section">
               <div className="autotag-section-header">
-                <h3>シーン分類 (CLIP)</h3>
+                <h3>シーンを分類する</h3>
                 <input
                   type="checkbox"
                   className="autotag-toggle"
@@ -238,6 +246,9 @@ export function AutoTagDialog({ timelineId, date, onClose, onComplete }: Props):
                 />
               </div>
               <div className={sceneEnabled ? '' : 'autotag-section-disabled'}>
+                <div className="autotag-threshold-hint" style={{ marginBottom: 8 }}>
+                  屋外・屋内・夜景・パーティーなどを自動判定します
+                </div>
                 <div className="autotag-labels">
                   {labels.map((l) => (
                     <div key={l.label} className="autotag-label-row">
@@ -248,7 +259,6 @@ export function AutoTagDialog({ timelineId, date, onClose, onComplete }: Props):
                           onChange={() => toggleLabel(l.label)}
                         />
                         <span className="autotag-label-display">{l.display}</span>
-                        <span className="autotag-label-en">{l.label}</span>
                       </label>
                       {!SCENE_LABELS.some((d) => d.label === l.label) && (
                         <button
@@ -301,7 +311,7 @@ export function AutoTagDialog({ timelineId, date, onClose, onComplete }: Props):
 
                 <div style={{ marginTop: 12 }}>
                   <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                    閾値: {Math.round(sceneThreshold * 100)}%
+                    精度
                   </div>
                   <input
                     type="range"
@@ -312,8 +322,9 @@ export function AutoTagDialog({ timelineId, date, onClose, onComplete }: Props):
                     onChange={(e) => setSceneThreshold(parseFloat(e.target.value))}
                     className="autotag-slider"
                   />
-                  <div className="autotag-threshold-hint">
-                    50%が「該当/非該当」の境界。低いほど多くタグ付けされます
+                  <div className="autotag-slider-labels">
+                    <span>あいまい</span>
+                    <span>厳密</span>
                   </div>
                 </div>
               </div>
