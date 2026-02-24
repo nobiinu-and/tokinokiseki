@@ -86,7 +86,28 @@ Worker は `electron.vite.config.ts` で別エントリポイントとして定�
 
 ### 日付カードグルーピング
 
-日付単位で写真をグルーピング。3枚以上の日は大きなカード（`isLargeCard`）で表示、1〜2枚はコンパクト表示。2日以内の間隔で連続する大カード日は「旅行」として視覚的にグループ化（`useTimeline.ts` の `computeConsecutiveGroups` 参照）。
+日付単位で写真をグルーピング。3枚以上の日は大きなカード（`isLargeCard`）で表示、1〜2枚はコンパクト表示。
+
+### できごと機能
+
+日付を「できごと」としてグルーピングする機能。2つのタイプをサポート:
+
+**Range型（期間）**: 旅行・帰省など、連続する日付の範囲
+- `events` テーブルで管理（timeline_id, title, type='range', start_date, end_date）
+- 範囲選択: 2クリック方式で手動作成。順序は自動判定（min/max）
+
+**Dates型（日付リスト）**: プラモデル制作・DIYなど、飛び飛びの個別日付
+- `event_dates` テーブルで個別日付を管理（event_id, date）
+- `events.start_date`/`end_date` は `event_dates` の min/max から自動同期（クエリ効率のため）
+- 作成: 複数日付をクリック選択 → タイトル入力
+- EventManager から「日付を追加」で既存イベントに日付を追加可能
+
+共通:
+- 重複許可: 同じ日が複数のできごとに含まれてOK
+- タイムライン上で日付カードにイベントラベルを表示（dates型は所属日のみ）
+- サジェスト: 固定パラメータ（minDays=2, maxGap=1, minPhotosPerDay=3）で自動検出、バナーで提示（常にrange型）
+- タイトル自動生成: 期間/日付内の写真タグから上位1〜2個を使用（`TAG_DISPLAY_NAMES` マッピングで日本語化）
+- 関連コンポーネント: `SuggestionBanner`, `EventTitleDialog`, `RangeSelectBar`, `DatesSelectBar`, `AddDatesBar`, `EventManager`
 
 ## 設定上の注意
 

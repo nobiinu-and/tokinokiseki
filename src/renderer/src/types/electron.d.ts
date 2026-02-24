@@ -1,4 +1,4 @@
-import type { Folder, Photo, DateCardSummary, ScanProgress, PhotoTag, AutoTagProgress, TagLabelDef, DuplicateGroup, Timeline } from './models'
+import type { Folder, Photo, DateCardSummary, ScanProgress, PhotoTag, AutoTagProgress, TagLabelDef, DuplicateGroup, Timeline, EventConfirmed, EventSuggestion } from './models'
 
 export interface ElectronAPI {
   selectFolder(): Promise<string | null>
@@ -32,6 +32,16 @@ export interface ElectronAPI {
   getTimelineFolders(timelineId: number): Promise<Folder[]>
   addFolderToTimeline(timelineId: number, folderPath: string): Promise<{ folderId: number }>
   removeFolderFromTimeline(timelineId: number, folderId: number): Promise<void>
+
+  getEvents(timelineId: number): Promise<EventConfirmed[]>
+  createEvent(timelineId: number, title: string, startDate: string, endDate: string, type?: 'range' | 'dates', dates?: string[]): Promise<EventConfirmed>
+  updateEvent(eventId: number, title?: string, startDate?: string, endDate?: string): Promise<void>
+  deleteEvent(eventId: number): Promise<void>
+  getEventSuggestions(timelineId: number): Promise<EventSuggestion[]>
+  generateEventTitle(timelineId: number, startDate: string, endDate: string): Promise<string>
+  addDateToEvent(eventId: number, date: string): Promise<void>
+  removeDateFromEvent(eventId: number, date: string): Promise<void>
+  generateEventTitleForDates(timelineId: number, dates: string[]): Promise<string>
 }
 
 declare global {

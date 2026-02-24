@@ -32,5 +32,15 @@ export const IPC_CHANNELS = {
   GET_DEFAULT_TIMELINE: 'timeline:getDefault',
   GET_TIMELINE_FOLDERS: 'timeline:getFolders',
   ADD_FOLDER_TO_TIMELINE: 'timeline:addFolder',
-  REMOVE_FOLDER_FROM_TIMELINE: 'timeline:removeFolder'
+  REMOVE_FOLDER_FROM_TIMELINE: 'timeline:removeFolder',
+
+  GET_EVENTS: 'events:getByTimeline',
+  CREATE_EVENT: 'events:create',
+  UPDATE_EVENT: 'events:update',
+  DELETE_EVENT: 'events:delete',
+  GET_EVENT_SUGGESTIONS: 'events:getSuggestions',
+  GENERATE_EVENT_TITLE: 'events:generateTitle',
+  ADD_DATE_TO_EVENT: 'events:addDate',
+  REMOVE_DATE_FROM_EVENT: 'events:removeDate',
+  GENERATE_EVENT_TITLE_FOR_DATES: 'events:generateTitleForDates'
 } as const

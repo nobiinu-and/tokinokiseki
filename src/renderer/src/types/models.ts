@@ -65,3 +65,19 @@ export interface DuplicatePhotoInfo {
 export interface DuplicateGroup {
   photos: DuplicatePhotoInfo[]
 }
+
+export interface EventConfirmed {
+  id: number
+  timelineId: number
+  title: string
+  type: 'range' | 'dates'
+  startDate: string
+  endDate: string
+  dates?: string[] // dates型のみ
+}
+
+export interface EventSuggestion {
+  startDate: string
+  endDate: string
+  totalPhotos: number
+}
