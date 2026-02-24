@@ -1,30 +1,17 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
+import { usePhotoTags } from '../hooks/usePhotoTags'
 import { PhotoThumbnail } from '../components/PhotoThumbnail'
 import { Lightbox } from '../components/Lightbox'
 import { TopBar } from '../components/TopBar'
-import type { Photo, PhotoTag } from '../types/models'
+import { formatDate } from '../utils/dateUtils'
+import type { Photo } from '../types/models'
+import type { DateGroup } from '../utils/dateUtils'
 
 interface TagStat {
   name: string
   count: number
-}
-
-interface DateGroup {
-  date: string
-  displayDate: string
-  photos: Photo[]
-}
-
-function formatDate(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00')
-  return d.toLocaleDateString('ja-JP', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    weekday: 'short'
-  })
 }
 
 export function TagSearchScreen(): JSX.Element {
@@ -35,7 +22,8 @@ export function TagSearchScreen(): JSX.Element {
   const [photos, setPhotos] = useState<Photo[]>([])
   const [loading, setLoading] = useState(false)
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
-  const [photoTags, setPhotoTags] = useState<Record<number, PhotoTag[]>>({})
+
+  const { photoTags, allTagNames, handleAddTag, handleRemoveTag: baseRemoveTag } = usePhotoTags(timelineId, photos)
 
   // Load tag stats
   useEffect(() => {
@@ -56,23 +44,6 @@ export function TagSearchScreen(): JSX.Element {
       .finally(() => setLoading(false))
   }, [timelineId, selectedTag])
 
-  // Load tags for each photo
-  const loadTags = useCallback(async (): Promise<void> => {
-    if (photos.length === 0) return
-    const tagMap: Record<number, PhotoTag[]> = {}
-    for (const photo of photos) {
-      const tags = await window.api.getTagsForPhoto(photo.id)
-      if (tags.length > 0) {
-        tagMap[photo.id] = tags
-      }
-    }
-    setPhotoTags(tagMap)
-  }, [photos])
-
-  useEffect(() => {
-    loadTags()
-  }, [loadTags])
-
   // Group photos by date
   const dateGroups = useMemo((): DateGroup[] => {
     const map: Record<string, Photo[]> = {}
@@ -88,7 +59,6 @@ export function TagSearchScreen(): JSX.Element {
       displayDate: formatDate(date),
       photos: datePhotos
     }))
-    // Already sorted DESC from SQL, but group order should also be DESC
     groups.sort((a, b) => b.date.localeCompare(a.date))
     return groups
   }, [photos])
@@ -105,45 +75,25 @@ export function TagSearchScreen(): JSX.Element {
     )
   }, [])
 
-  const allTagNames = useMemo(() => tagStats.map((s) => s.name), [tagStats])
-
-  const handleAddTag = useCallback(async (photoId: number, tagName: string): Promise<void> => {
-    try {
-      const updatedTags = await window.api.addTagToPhoto(photoId, tagName)
-      setPhotoTags((prev) => ({ ...prev, [photoId]: updatedTags }))
-      // Refresh tag stats to update the chip list
-      if (timelineId) {
-        window.api.getTagStats(timelineId).then(setTagStats)
-      }
-    } catch (err) {
-      console.error('Failed to add tag:', err)
+  const handleAddTagWrapped = useCallback(async (photoId: number, tagName: string): Promise<void> => {
+    await handleAddTag(photoId, tagName)
+    // Refresh tag stats to update the chip list
+    if (timelineId) {
+      window.api.getTagStats(timelineId).then(setTagStats)
     }
-  }, [timelineId])
+  }, [handleAddTag, timelineId])
 
   const handleRemoveTag = useCallback(async (photoId: number, tagName: string): Promise<void> => {
-    try {
-      const updatedTags = await window.api.removeTagFromPhoto(photoId, tagName)
-      setPhotoTags((prev) => {
-        const next = { ...prev }
-        if (updatedTags.length > 0) {
-          next[photoId] = updatedTags
-        } else {
-          delete next[photoId]
-        }
-        return next
-      })
-      // Refresh tag stats to update the chip list
-      if (timelineId) {
-        window.api.getTagStats(timelineId).then(setTagStats)
-      }
-      // If we removed the currently selected tag from a photo, refresh the photo list
-      if (tagName === selectedTag && timelineId) {
-        window.api.getPhotosByTag(timelineId, tagName).then(setPhotos)
-      }
-    } catch (err) {
-      console.error('Failed to remove tag:', err)
+    await baseRemoveTag(photoId, tagName)
+    // Refresh tag stats to update the chip list
+    if (timelineId) {
+      window.api.getTagStats(timelineId).then(setTagStats)
     }
-  }, [timelineId, selectedTag])
+    // If we removed the currently selected tag from a photo, refresh the photo list
+    if (tagName === selectedTag && timelineId) {
+      window.api.getPhotosByTag(timelineId, tagName).then(setPhotos)
+    }
+  }, [baseRemoveTag, timelineId, selectedTag])
 
   // Calculate flat index for Lightbox from date group + local index
   const openLightbox = useCallback(
@@ -231,7 +181,7 @@ export function TagSearchScreen(): JSX.Element {
           onToggleBest={toggleBest}
           tags={photoTags}
           allTags={allTagNames}
-          onAddTag={handleAddTag}
+          onAddTag={handleAddTagWrapped}
           onRemoveTag={handleRemoveTag}
         />
       )}

@@ -69,6 +69,11 @@ body {
   gap: var(--spacing-md);
 }
 
+.text-hint {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
 /* Buttons */
 
 .btn {

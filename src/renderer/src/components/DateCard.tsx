@@ -1,4 +1,5 @@
 import type { EventConfirmed } from '../types/models'
+import { formatDate } from '../utils/dateUtils'
 
 interface Props {
   date: string
@@ -11,16 +12,6 @@ interface Props {
   isInRange?: boolean
   onClick: () => void
   onEventClick?: (event: EventConfirmed) => void
-}
-
-function formatDate(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00')
-  return d.toLocaleDateString('ja-JP', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    weekday: 'short'
-  })
 }
 
 function EventLabels({

@@ -1,26 +1,13 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
+import { usePhotoTags } from '../hooks/usePhotoTags'
 import { PhotoThumbnail } from '../components/PhotoThumbnail'
 import { Lightbox } from '../components/Lightbox'
 import { TopBar } from '../components/TopBar'
-import type { Photo, PhotoTag } from '../types/models'
-
-interface DateGroup {
-  date: string
-  displayDate: string
-  photos: Photo[]
-}
-
-function formatDate(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00')
-  return d.toLocaleDateString('ja-JP', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    weekday: 'short'
-  })
-}
+import { formatDate } from '../utils/dateUtils'
+import type { Photo } from '../types/models'
+import type { DateGroup } from '../utils/dateUtils'
 
 export function TagDetailScreen(): JSX.Element {
   const navigate = useNavigate()
@@ -30,35 +17,20 @@ export function TagDetailScreen(): JSX.Element {
   const [photos, setPhotos] = useState<Photo[]>([])
   const [loading, setLoading] = useState(true)
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
-  const [photoTags, setPhotoTags] = useState<Record<number, PhotoTag[]>>({})
-  const [allTagNames, setAllTagNames] = useState<string[]>([])
+
+  const { photoTags, allTagNames, handleAddTag, handleRemoveTag } = usePhotoTags(timelineId, photos)
 
   useEffect(() => {
     if (!timelineId || !tagName) return
     setLoading(true)
-    Promise.all([
-      window.api.getPhotosByTag(timelineId, tagName),
-      window.api.getTagStats(timelineId)
-    ]).then(([tagPhotos, tagStats]) => {
+    window.api.getPhotosByTag(timelineId, tagName).then((tagPhotos) => {
       setPhotos(tagPhotos)
-      setAllTagNames(tagStats.map((s) => s.name))
+      setLoading(false)
+    }).catch((err) => {
+      console.error('Failed to load tag photos:', err)
       setLoading(false)
     })
   }, [timelineId, tagName])
-
-  // Load tags for each photo
-  useEffect(() => {
-    if (photos.length === 0) return
-    const loadTags = async (): Promise<void> => {
-      const tagMap: Record<number, PhotoTag[]> = {}
-      for (const photo of photos) {
-        const tags = await window.api.getTagsForPhoto(photo.id)
-        if (tags.length > 0) tagMap[photo.id] = tags
-      }
-      setPhotoTags(tagMap)
-    }
-    loadTags()
-  }, [photos])
 
   const dateGroups = useMemo((): DateGroup[] => {
     const map: Record<string, Photo[]> = {}
@@ -85,37 +57,13 @@ export function TagDetailScreen(): JSX.Element {
     )
   }, [])
 
-  const handleAddTag = useCallback(async (photoId: number, addTagName: string): Promise<void> => {
-    const updatedTags = await window.api.addTagToPhoto(photoId, addTagName)
-    setPhotoTags((prev) => ({ ...prev, [photoId]: updatedTags }))
-    if (timelineId) {
-      window.api.getTagStats(timelineId).then((stats) =>
-        setAllTagNames(stats.map((s) => s.name))
-      )
-    }
-  }, [timelineId])
-
-  const handleRemoveTag = useCallback(async (photoId: number, removeTagName: string): Promise<void> => {
-    const updatedTags = await window.api.removeTagFromPhoto(photoId, removeTagName)
-    setPhotoTags((prev) => {
-      const next = { ...prev }
-      if (updatedTags.length > 0) {
-        next[photoId] = updatedTags
-      } else {
-        delete next[photoId]
-      }
-      return next
-    })
+  const wrappedRemoveTag = useCallback(async (photoId: number, removeTagName: string): Promise<void> => {
+    await handleRemoveTag(photoId, removeTagName)
     // If we removed the current tag, refresh photos
     if (removeTagName === tagName && timelineId) {
       window.api.getPhotosByTag(timelineId, tagName).then(setPhotos)
     }
-    if (timelineId) {
-      window.api.getTagStats(timelineId).then((stats) =>
-        setAllTagNames(stats.map((s) => s.name))
-      )
-    }
-  }, [timelineId, tagName])
+  }, [handleRemoveTag, timelineId, tagName])
 
   const openLightbox = useCallback(
     (photo: Photo) => {
@@ -184,7 +132,7 @@ export function TagDetailScreen(): JSX.Element {
           tags={photoTags}
           allTags={allTagNames}
           onAddTag={handleAddTag}
-          onRemoveTag={handleRemoveTag}
+          onRemoveTag={wrappedRemoveTag}
         />
       )}
     </div>

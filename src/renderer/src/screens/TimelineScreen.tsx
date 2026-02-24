@@ -468,9 +468,9 @@ export function TimelineScreen(): JSX.Element {
         </div>
       ) : activeItems.length === 0 ? (
         <div className="screen-center">
-          <p>写真が見つかりませんでした</p>
-          <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-            ホーム画面からフォルダを追加してください
+          <p>まだ写真がありません</p>
+          <p className="text-hint">
+            ホーム画面からフォルダを追加して、思い出を読み込みましょう
           </p>
         </div>
       ) : (

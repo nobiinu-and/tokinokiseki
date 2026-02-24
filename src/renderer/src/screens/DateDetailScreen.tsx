@@ -1,24 +1,15 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { VirtuosoGrid } from 'react-virtuoso'
 import { useApp } from '../context/AppContext'
 import { usePhotos } from '../hooks/usePhotos'
+import { usePhotoTags } from '../hooks/usePhotoTags'
 import { PhotoThumbnail } from '../components/PhotoThumbnail'
 import { Lightbox } from '../components/Lightbox'
 import { TopBar } from '../components/TopBar'
 import { AutoTagDialog } from '../components/AutoTagDialog'
 import { DuplicateDialog } from '../components/DuplicateDialog'
-import type { PhotoTag } from '../types/models'
-
-function formatDate(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00')
-  return d.toLocaleDateString('ja-JP', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    weekday: 'short'
-  })
-}
+import { formatDate } from '../utils/dateUtils'
 
 export function DateDetailScreen(): JSX.Element {
   const navigate = useNavigate()
@@ -26,65 +17,15 @@ export function DateDetailScreen(): JSX.Element {
   const { timelineId } = useApp()
   const { photos, loading, toggleBest, reload } = usePhotos(timelineId, date ?? null)
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
-  const [photoTags, setPhotoTags] = useState<Record<number, PhotoTag[]>>({})
-  const [allTags, setAllTags] = useState<string[]>([])
   const [showAutoTag, setShowAutoTag] = useState(false)
   const [showDuplicates, setShowDuplicates] = useState(false)
 
-  const loadTags = useCallback(async (): Promise<void> => {
-    if (photos.length === 0) return
-    const tagMap: Record<number, PhotoTag[]> = {}
-    for (const photo of photos) {
-      const tags = await window.api.getTagsForPhoto(photo.id)
-      if (tags.length > 0) {
-        tagMap[photo.id] = tags
-      }
-    }
-    setPhotoTags(tagMap)
-  }, [photos])
+  const { photoTags, allTagNames, handleAddTag, handleRemoveTag, reloadTags } = usePhotoTags(timelineId, photos)
 
-  const loadAllTags = useCallback(async (): Promise<void> => {
-    if (!timelineId) return
-    const stats = await window.api.getTagStats(timelineId)
-    setAllTags(stats.map((s) => s.name))
-  }, [timelineId])
-
-  useEffect(() => {
-    loadTags()
-  }, [loadTags])
-
-  useEffect(() => {
-    loadAllTags()
-  }, [loadAllTags])
-
-  const handleAddTag = useCallback(async (photoId: number, tagName: string): Promise<void> => {
-    try {
-      const updatedTags = await window.api.addTagToPhoto(photoId, tagName)
-      setPhotoTags((prev) => ({ ...prev, [photoId]: updatedTags }))
-      if (!allTags.includes(tagName)) {
-        setAllTags((prev) => [...prev, tagName])
-      }
-    } catch (err) {
-      console.error('Failed to add tag:', err)
-    }
-  }, [allTags])
-
-  const handleRemoveTag = useCallback(async (photoId: number, tagName: string): Promise<void> => {
-    try {
-      const updatedTags = await window.api.removeTagFromPhoto(photoId, tagName)
-      setPhotoTags((prev) => {
-        const next = { ...prev }
-        if (updatedTags.length > 0) {
-          next[photoId] = updatedTags
-        } else {
-          delete next[photoId]
-        }
-        return next
-      })
-    } catch (err) {
-      console.error('Failed to remove tag:', err)
-    }
-  }, [])
+  const handleAutoTagComplete = useCallback(() => {
+    reload()
+    reloadTags()
+  }, [reload, reloadTags])
 
   if (!timelineId || !date) {
     navigate('/')
@@ -152,7 +93,7 @@ export function DateDetailScreen(): JSX.Element {
           onClose={() => setLightboxIndex(null)}
           onToggleBest={toggleBest}
           tags={photoTags}
-          allTags={allTags}
+          allTags={allTagNames}
           onAddTag={handleAddTag}
           onRemoveTag={handleRemoveTag}
         />
@@ -163,7 +104,7 @@ export function DateDetailScreen(): JSX.Element {
           timelineId={timelineId}
           date={date}
           onClose={() => setShowAutoTag(false)}
-          onComplete={() => { reload(); loadTags() }}
+          onComplete={handleAutoTagComplete}
         />
       )}
 
