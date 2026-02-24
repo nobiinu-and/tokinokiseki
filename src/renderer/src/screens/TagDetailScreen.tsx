@@ -26,7 +26,7 @@ export function TagDetailScreen(): JSX.Element {
   const navigate = useNavigate()
   const { name } = useParams<{ name: string }>()
   const { timelineId } = useApp()
-  const tagName = name ? decodeURIComponent(name) : ''
+  const tagName = name ?? ''
   const [photos, setPhotos] = useState<Photo[]>([])
   const [loading, setLoading] = useState(true)
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)

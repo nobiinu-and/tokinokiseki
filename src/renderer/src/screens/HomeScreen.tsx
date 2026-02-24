@@ -17,6 +17,7 @@ interface Suggestion {
   title: string
   subtitle: string
   thumbnailPath?: string
+  thumbnailAlt?: string
   navigateTo: string
 }
 
@@ -43,6 +44,7 @@ function computeSuggestion(dateSummaries: DateCardSummary[]): Suggestion | null 
       title: `${yearsAgo}年前の今日、こんな写真を撮っていました`,
       subtitle: `${oldest.photoCount}枚の写真`,
       thumbnailPath: oldest.thumbnailPath,
+      thumbnailAlt: `${yearsAgo}年前の今日の写真`,
       navigateTo: `/timeline/${oldest.date}`
     }
   }
@@ -187,7 +189,7 @@ export function HomeScreen(): JSX.Element {
         {folders.length > 0 && suggestion && (
           <button className="home-suggestion-card" onClick={() => navigate(suggestion.navigateTo)}>
             {suggestion.type === 'memory' && suggestion.thumbnailPath && (
-              <img src={suggestion.thumbnailPath} className="home-suggestion-thumb" />
+              <img src={suggestion.thumbnailPath} className="home-suggestion-thumb" alt={suggestion.thumbnailAlt} />
             )}
             <div className="home-suggestion-text">
               <p className="home-suggestion-title">{suggestion.title}</p>
