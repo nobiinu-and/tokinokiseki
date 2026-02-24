@@ -144,7 +144,7 @@ export async function initDatabase(): Promise<void> {
         end_date TEXT NOT NULL,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-        FOREIGN KEY (timeline_id) REFERENCES timelines(id)
+        FOREIGN KEY (timeline_id) REFERENCES timelines(id) ON DELETE CASCADE
       )
     `)
     db.run('CREATE INDEX IF NOT EXISTS idx_events_dates ON events(start_date, end_date)')
@@ -165,7 +165,7 @@ export async function initDatabase(): Promise<void> {
         event_id INTEGER NOT NULL,
         date TEXT NOT NULL,
         PRIMARY KEY (event_id, date),
-        FOREIGN KEY (event_id) REFERENCES events(id)
+        FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
       )
     `)
     db.run('CREATE INDEX IF NOT EXISTS idx_event_dates_event ON event_dates(event_id)')
@@ -1000,11 +1000,25 @@ export function addDateToEvent(eventId: number, date: string): void {
   saveDatabase()
 }
 
-export function removeDateFromEvent(eventId: number, date: string): void {
+export function removeDateFromEvent(eventId: number, date: string): boolean {
   const d = getDb()
   d.run('DELETE FROM event_dates WHERE event_id = ? AND date = ?', [eventId, date])
+
+  // 日付が0件になったらイベントごと削除
+  const remaining = d.exec(
+    'SELECT COUNT(*) FROM event_dates WHERE event_id = ?',
+    [eventId]
+  )
+  const count = remaining.length > 0 ? (remaining[0].values[0][0] as number) : 0
+  if (count === 0) {
+    d.run('DELETE FROM events WHERE id = ?', [eventId])
+    saveDatabase()
+    return true // イベント削除された
+  }
+
   recalcEventDateRange(d, eventId)
   saveDatabase()
+  return false // イベントは残っている
 }
 
 export function generateEventTitleForDates(

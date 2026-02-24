@@ -353,7 +353,7 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     IPC_CHANNELS.REMOVE_DATE_FROM_EVENT,
     async (_event, eventId: number, date: string) => {
       await db.ensureDb()
-      db.removeDateFromEvent(eventId, date)
+      return db.removeDateFromEvent(eventId, date)
     }
   )
 

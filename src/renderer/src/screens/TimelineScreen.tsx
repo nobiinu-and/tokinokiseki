@@ -187,19 +187,20 @@ export function TimelineScreen(): JSX.Element {
     (title: string): void => {
       if (!timelineId || !eventSelect) return
 
+      const cleanup = (): void => {
+        setEventSelect(null)
+        refresh()
+      }
+      const onError = (err: unknown): void => {
+        console.error('Failed to create event:', err)
+        setEventSelect(null)
+      }
+
       if (eventSelect.mode === 'range' && eventSelect.step === 'title') {
         window.api
-          .createEvent(
-            timelineId,
-            title,
-            eventSelect.startDate,
-            eventSelect.endDate,
-            'range'
-          )
-          .then(() => {
-            setEventSelect(null)
-            refresh()
-          })
+          .createEvent(timelineId, title, eventSelect.startDate, eventSelect.endDate, 'range')
+          .then(cleanup)
+          .catch(onError)
         return
       }
 
@@ -207,10 +208,8 @@ export function TimelineScreen(): JSX.Element {
         const sorted = eventSelect.dates
         window.api
           .createEvent(timelineId, title, sorted[0], sorted[sorted.length - 1], 'dates', sorted)
-          .then(() => {
-            setEventSelect(null)
-            refresh()
-          })
+          .then(cleanup)
+          .catch(onError)
         return
       }
     },
@@ -221,30 +220,35 @@ export function TimelineScreen(): JSX.Element {
   const handleAddDatesConfirm = useCallback(() => {
     if (!eventSelect || eventSelect.mode !== 'add-dates') return
     const { eventId, selectedDates } = eventSelect
-    Promise.all(selectedDates.map((date) => window.api.addDateToEvent(eventId, date))).then(() => {
-      setEventSelect(null)
-      refresh()
-    })
+    Promise.all(selectedDates.map((date) => window.api.addDateToEvent(eventId, date)))
+      .then(() => {
+        setEventSelect(null)
+        refresh()
+      })
+      .catch((err) => {
+        console.error('Failed to add dates:', err)
+        setEventSelect(null)
+      })
   }, [eventSelect, refresh])
 
   // Event management
   const handleDeleteEvent = useCallback(
     (eventId: number): void => {
-      window.api.deleteEvent(eventId).then(() => refresh())
+      window.api.deleteEvent(eventId).then(() => refresh()).catch(console.error)
     },
     [refresh]
   )
 
   const handleUpdateEvent = useCallback(
     (eventId: number, title: string): void => {
-      window.api.updateEvent(eventId, title).then(() => refresh())
+      window.api.updateEvent(eventId, title).then(() => refresh()).catch(console.error)
     },
     [refresh]
   )
 
   const handleRemoveDate = useCallback(
     (eventId: number, date: string): void => {
-      window.api.removeDateFromEvent(eventId, date).then(() => refresh())
+      window.api.removeDateFromEvent(eventId, date).then(() => refresh()).catch(console.error)
     },
     [refresh]
   )
