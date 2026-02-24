@@ -28,7 +28,7 @@ interface UseTimelineResult {
   dismissSuggestion: (startDate: string, endDate: string) => void
 }
 
-function isDateInEvent(date: string, event: EventConfirmed): boolean {
+export function isDateInEvent(date: string, event: EventConfirmed): boolean {
   if (event.type === 'dates') {
     return event.dates?.includes(date) ?? false
   }
@@ -39,7 +39,7 @@ function suggestionKey(s: EventSuggestion): string {
   return `${s.startDate}:${s.endDate}`
 }
 
-function computeYearMonthGroups(items: TimelineItem[]): YearMonthGroup[] {
+export function computeYearMonthGroups(items: TimelineItem[]): YearMonthGroup[] {
   if (items.length === 0) return []
 
   const groups: YearMonthGroup[] = []

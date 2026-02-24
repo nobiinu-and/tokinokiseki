@@ -2,9 +2,9 @@ import { useState, useCallback, useRef, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { GroupedVirtuoso, type GroupedVirtuosoHandle, type ListRange } from 'react-virtuoso'
 import { useApp } from '../context/AppContext'
-import { useTimeline } from '../hooks/useTimeline'
+import { useTimeline, isDateInEvent, computeYearMonthGroups } from '../hooks/useTimeline'
 import type { TimelineItem } from '../hooks/useTimeline'
-import type { EventSuggestion } from '../types/models'
+import type { EventConfirmed, EventSuggestion } from '../types/models'
 import { DateCard } from '../components/DateCard'
 import { TopBar } from '../components/TopBar'
 import { AutoTagDialog } from '../components/AutoTagDialog'
@@ -18,6 +18,13 @@ import { EventManager } from '../components/EventManager'
 
 // Persist scroll position across navigations (module-level, survives remounts)
 let savedScrollIndex = 0
+let savedEventFilter: EventConfirmed | null = null
+
+function formatFilterRange(startDate: string, endDate: string): string {
+  const s = new Date(startDate + 'T00:00:00')
+  const e = new Date(endDate + 'T00:00:00')
+  return `${s.getMonth() + 1}/${s.getDate()}〜${e.getMonth() + 1}/${e.getDate()}`
+}
 
 type EventSelectState =
   | null
@@ -36,8 +43,14 @@ export function TimelineScreen(): JSX.Element {
   const [showEventManager, setShowEventManager] = useState(false)
   const [eventSelect, setEventSelect] = useState<EventSelectState>(null)
   const [showCreateMenu, setShowCreateMenu] = useState(false)
+  const [eventFilter, setEventFilter] = useState<EventConfirmed | null>(savedEventFilter)
   const createMenuRef = useRef<HTMLDivElement>(null)
   const virtuosoRef = useRef<GroupedVirtuosoHandle>(null)
+
+  const setFilter = useCallback((event: EventConfirmed | null) => {
+    savedEventFilter = event
+    setEventFilter(event)
+  }, [])
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -55,17 +68,48 @@ export function TimelineScreen(): JSX.Element {
     savedScrollIndex = range.startIndex
   }, [])
 
+  // Event filter: filter items to only show dates belonging to the selected event
+  const filteredItems = useMemo(() => {
+    if (!eventFilter) return items
+    return items.filter((item) => {
+      if (item.type === 'suggestion-banner') return false
+      return isDateInEvent(item.card.date, eventFilter)
+    })
+  }, [items, eventFilter])
+
+  const filteredGroups = useMemo(
+    () => computeYearMonthGroups(filteredItems),
+    [filteredItems]
+  )
+
+  const filteredGroupCounts = useMemo(
+    () => filteredGroups.map((g) => g.count),
+    [filteredGroups]
+  )
+
+  // Event filter bar info
+  const filterInfo = useMemo(() => {
+    if (!eventFilter) return null
+    const dateCards = filteredItems.filter((i) => i.type === 'date-card')
+    const totalPhotos = dateCards.reduce(
+      (sum, i) => sum + (i.type === 'date-card' ? i.card.photoCount : 0),
+      0
+    )
+    return { dayCount: dateCards.length, totalPhotos }
+  }, [eventFilter, filteredItems])
+
   const jumpBarYears = useMemo(() => {
+    const source = eventFilter ? filteredGroups : groups
     const seen = new Set<number>()
     const years: { year: number; groupIndex: number }[] = []
-    groups.forEach((g, i) => {
+    source.forEach((g, i) => {
       if (!seen.has(g.year)) {
         seen.add(g.year)
         years.push({ year: g.year, groupIndex: i })
       }
     })
     return years
-  }, [groups])
+  }, [groups, eventFilter, filteredGroups])
 
   const handleJump = useCallback((groupIndex: number) => {
     virtuosoRef.current?.scrollToIndex({
@@ -261,6 +305,15 @@ export function TimelineScreen(): JSX.Element {
     []
   )
 
+  // Event filter: click event label to filter timeline
+  const handleEventClick = useCallback(
+    (event: EventConfirmed) => {
+      setFilter(event)
+      setShowEventManager(false)
+    },
+    [setFilter]
+  )
+
   if (!timelineId) {
     navigate('/')
     return <></>
@@ -274,8 +327,12 @@ export function TimelineScreen(): JSX.Element {
     navigate('/', { state: { fromBack: true } })
   }
 
+  const activeItems = eventFilter ? filteredItems : items
+  const activeGroups = eventFilter ? filteredGroups : groups
+  const activeGroupCounts = eventFilter ? filteredGroupCounts : groupCounts
+
   const renderItem = (index: number): JSX.Element | null => {
-    const item: TimelineItem | undefined = items[index]
+    const item: TimelineItem | undefined = activeItems[index]
     if (!item) return null
 
     if (item.type === 'suggestion-banner') {
@@ -304,6 +361,7 @@ export function TimelineScreen(): JSX.Element {
           isSelected={isDateSelected(card.date)}
           isInRange={isDateInSelectedRange(card.date)}
           onClick={() => handleDateCardClick(card.date)}
+          onEventClick={!eventFilter ? handleEventClick : undefined}
         />
       </div>
     )
@@ -312,57 +370,65 @@ export function TimelineScreen(): JSX.Element {
   return (
     <div className="screen timeline-screen">
       <TopBar
-        title="タイムライン"
-        onBack={handleSettings}
+        title={eventFilter ? eventFilter.title : 'タイムライン'}
+        onBack={eventFilter ? () => setFilter(null) : handleSettings}
         actions={
-          <div className="topbar-actions-group">
-            {events.length > 0 && (
-              <button
-                className="btn btn-secondary"
-                onClick={() => setShowEventManager(true)}
-              >
-                できごと
+          eventFilter ? (
+            <div className="topbar-actions-group">
+              <button className="btn btn-secondary" onClick={() => setFilter(null)}>
+                ✕ フィルタ解除
               </button>
-            )}
-            <div className="event-create-dropdown" ref={createMenuRef}>
-              <button
-                className="btn btn-secondary"
-                onClick={() => setShowCreateMenu((v) => !v)}
-                disabled={eventSelect !== null}
-              >
-                + できごと ▾
-              </button>
-              {showCreateMenu && (
-                <div className="event-create-menu">
-                  <button
-                    onClick={() => {
-                      setShowCreateMenu(false)
-                      setEventSelect({ mode: 'range', step: 'selecting' })
-                    }}
-                  >
-                    期間（旅行、帰省）
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowCreateMenu(false)
-                      setEventSelect({ mode: 'dates', step: 'selecting', selectedDates: [] })
-                    }}
-                  >
-                    日付リスト（制作、DIY）
-                  </button>
-                </div>
-              )}
             </div>
-            <button className="btn btn-secondary" onClick={() => navigate('/tags')}>
-              タグ検索
-            </button>
-            <button className="btn btn-secondary" onClick={() => setShowAutoTag(true)}>
-              タグ付け
-            </button>
-            <button className="btn btn-accent" onClick={handleSlideshow}>
-              ▶ スライドショー
-            </button>
-          </div>
+          ) : (
+            <div className="topbar-actions-group">
+              {events.length > 0 && (
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => setShowEventManager(true)}
+                >
+                  できごと
+                </button>
+              )}
+              <div className="event-create-dropdown" ref={createMenuRef}>
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => setShowCreateMenu((v) => !v)}
+                  disabled={eventSelect !== null}
+                >
+                  + できごと ▾
+                </button>
+                {showCreateMenu && (
+                  <div className="event-create-menu">
+                    <button
+                      onClick={() => {
+                        setShowCreateMenu(false)
+                        setEventSelect({ mode: 'range', step: 'selecting' })
+                      }}
+                    >
+                      期間（旅行、帰省）
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowCreateMenu(false)
+                        setEventSelect({ mode: 'dates', step: 'selecting', selectedDates: [] })
+                      }}
+                    >
+                      日付リスト（制作、DIY）
+                    </button>
+                  </div>
+                )}
+              </div>
+              <button className="btn btn-secondary" onClick={() => navigate('/tags')}>
+                タグ検索
+              </button>
+              <button className="btn btn-secondary" onClick={() => setShowAutoTag(true)}>
+                タグ付け
+              </button>
+              <button className="btn btn-accent" onClick={handleSlideshow}>
+                ▶ スライドショー
+              </button>
+            </div>
+          )
         }
       />
 
@@ -390,11 +456,21 @@ export function TimelineScreen(): JSX.Element {
         />
       )}
 
+      {eventFilter && filterInfo && (
+        <div className="event-filter-bar">
+          {formatFilterRange(eventFilter.startDate, eventFilter.endDate)}
+          {' ・ '}
+          {filterInfo.dayCount}日間
+          {' ・ '}
+          {filterInfo.totalPhotos}枚
+        </div>
+      )}
+
       {loading ? (
         <div className="screen-center">
           <p>読み込み中...</p>
         </div>
-      ) : items.length === 0 ? (
+      ) : activeItems.length === 0 ? (
         <div className="screen-center">
           <p>写真が見つかりませんでした</p>
           <button className="btn btn-primary" onClick={handleSettings}>
@@ -405,11 +481,11 @@ export function TimelineScreen(): JSX.Element {
         <div className="timeline-container">
           <GroupedVirtuoso
             ref={virtuosoRef}
-            groupCounts={groupCounts}
-            initialTopMostItemIndex={savedScrollIndex}
+            groupCounts={activeGroupCounts}
+            initialTopMostItemIndex={eventFilter ? 0 : savedScrollIndex}
             rangeChanged={handleRangeChanged}
             groupContent={(index) => (
-              <div className="timeline-section-header">{groups[index]?.label}</div>
+              <div className="timeline-section-header">{activeGroups[index]?.label}</div>
             )}
             itemContent={renderItem}
           />
@@ -456,6 +532,7 @@ export function TimelineScreen(): JSX.Element {
           onUpdate={handleUpdateEvent}
           onRemoveDate={handleRemoveDate}
           onStartAddDates={handleStartAddDates}
+          onEventClick={handleEventClick}
         />
       )}
     </div>

@@ -10,6 +10,7 @@ interface Props {
   isSelected?: boolean
   isInRange?: boolean
   onClick: () => void
+  onEventClick?: (event: EventConfirmed) => void
 }
 
 function formatDate(dateStr: string): string {
@@ -22,12 +23,29 @@ function formatDate(dateStr: string): string {
   })
 }
 
-function EventLabels({ events }: { events: EventConfirmed[] }): JSX.Element | null {
+function EventLabels({
+  events,
+  onEventClick
+}: {
+  events: EventConfirmed[]
+  onEventClick?: (event: EventConfirmed) => void
+}): JSX.Element | null {
   if (events.length === 0) return null
   return (
     <div className="date-card-event-labels">
       {events.map((e) => (
-        <span key={e.id} className="date-card-event-label">
+        <span
+          key={e.id}
+          className={`date-card-event-label ${onEventClick ? 'clickable' : ''}`}
+          onClick={
+            onEventClick
+              ? (ev) => {
+                  ev.stopPropagation()
+                  onEventClick(e)
+                }
+              : undefined
+          }
+        >
           {e.title}
         </span>
       ))}
@@ -44,7 +62,8 @@ export function DateCard({
   events,
   isSelected,
   isInRange,
-  onClick
+  onClick,
+  onEventClick
 }: Props): JSX.Element {
   const extraClass = [
     isSelected ? 'date-card-selected' : '',
@@ -62,7 +81,7 @@ export function DateCard({
           <span className="date-card-count-compact">{photoCount}枚</span>
         </div>
         {hasBest && <span className="date-card-best-badge">★</span>}
-        {events && events.length > 0 && <EventLabels events={events} />}
+        {events && events.length > 0 && <EventLabels events={events} onEventClick={onEventClick} />}
       </div>
     )
   }
@@ -74,7 +93,7 @@ export function DateCard({
         <span className="date-card-date">{formatDate(date)}</span>
         <span className="date-card-count">{photoCount}枚</span>
         {hasBest && <span className="date-card-best-badge">★ ベストあり</span>}
-        {events && events.length > 0 && <EventLabels events={events} />}
+        {events && events.length > 0 && <EventLabels events={events} onEventClick={onEventClick} />}
       </div>
     </div>
   )
