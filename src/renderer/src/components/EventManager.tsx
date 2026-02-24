@@ -8,6 +8,7 @@ interface Props {
   onUpdate: (eventId: number, title: string) => void
   onRemoveDate: (eventId: number, date: string) => void
   onStartAddDates: (eventId: number, eventTitle: string) => void
+  onEventClick?: (event: EventConfirmed) => void
 }
 
 function formatRange(startDate: string, endDate: string): string {
@@ -26,13 +27,15 @@ function EventItem({
   onDelete,
   onUpdate,
   onRemoveDate,
-  onStartAddDates
+  onStartAddDates,
+  onEventClick
 }: {
   event: EventConfirmed
   onDelete: (id: number) => void
   onUpdate: (id: number, title: string) => void
   onRemoveDate: (eventId: number, date: string) => void
   onStartAddDates: (eventId: number, eventTitle: string) => void
+  onEventClick?: (event: EventConfirmed) => void
 }): JSX.Element {
   const [editing, setEditing] = useState(false)
   const [title, setTitle] = useState(event.title)
@@ -109,12 +112,22 @@ function EventItem({
           </span>
         )}
       </div>
-      <button
-        className="btn btn-ghost btn-small event-manager-delete"
-        onClick={() => onDelete(event.id)}
-      >
-        削除
-      </button>
+      <div className="event-manager-actions">
+        {onEventClick && (
+          <button
+            className="btn btn-ghost btn-small"
+            onClick={() => onEventClick(event)}
+          >
+            表示
+          </button>
+        )}
+        <button
+          className="btn btn-ghost btn-small event-manager-delete"
+          onClick={() => onDelete(event.id)}
+        >
+          削除
+        </button>
+      </div>
     </div>
   )
 }
@@ -125,7 +138,8 @@ export function EventManager({
   onDelete,
   onUpdate,
   onRemoveDate,
-  onStartAddDates
+  onStartAddDates,
+  onEventClick
 }: Props): JSX.Element {
   return (
     <div className="dialog-overlay" onClick={onClose}>
@@ -149,6 +163,7 @@ export function EventManager({
                   onUpdate={onUpdate}
                   onRemoveDate={onRemoveDate}
                   onStartAddDates={onStartAddDates}
+                  onEventClick={onEventClick}
                 />
               ))}
             </div>
