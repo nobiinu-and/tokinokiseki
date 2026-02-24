@@ -134,8 +134,47 @@ export async function initDatabase(): Promise<void> {
       }
     }
 
+    // --- Events table ---
+    db.run(`
+      CREATE TABLE IF NOT EXISTS events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        timeline_id INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        start_date TEXT NOT NULL,
+        end_date TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        FOREIGN KEY (timeline_id) REFERENCES timelines(id) ON DELETE CASCADE
+      )
+    `)
+    db.run('CREATE INDEX IF NOT EXISTS idx_events_dates ON events(start_date, end_date)')
+    db.run('CREATE INDEX IF NOT EXISTS idx_events_timeline ON events(timeline_id)')
+
+    // Add type column to events if not exists
+    const eventColInfo = db.exec("PRAGMA table_info('events')")
+    const hasEventTypeCol =
+      eventColInfo.length > 0 &&
+      eventColInfo[0].values.some((row) => row[1] === 'type')
+    if (!hasEventTypeCol) {
+      db.run("ALTER TABLE events ADD COLUMN type TEXT NOT NULL DEFAULT 'range'")
+    }
+
+    // --- Event dates table (for dates-type events) ---
+    const hasEventDatesTable =
+      db.exec("SELECT 1 FROM sqlite_master WHERE type='table' AND name='event_dates'").length > 0
+
+    db.run(`
+      CREATE TABLE IF NOT EXISTS event_dates (
+        event_id INTEGER NOT NULL,
+        date TEXT NOT NULL,
+        PRIMARY KEY (event_id, date),
+        FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
+      )
+    `)
+    db.run('CREATE INDEX IF NOT EXISTS idx_event_dates_event ON event_dates(event_id)')
+
     // Only save if schema was actually modified (first run or migration)
-    if (isNewDb || !hasOrientationCol || !hasTimelines) {
+    if (isNewDb || !hasOrientationCol || !hasTimelines || !hasEventTypeCol || !hasEventDatesTable) {
       saveDatabase()
     }
   })()
@@ -656,4 +695,383 @@ export function getPhotosNeedingRotationCheck(
     id: row[0] as number,
     filePath: row[1] as string
   }))
+}
+
+// --- Events ---
+
+export interface EventRow {
+  id: number
+  timelineId: number
+  title: string
+  type: 'range' | 'dates'
+  startDate: string
+  endDate: string
+  dates?: string[] // dates型のみ、昇順
+}
+
+export interface EventSuggestion {
+  startDate: string
+  endDate: string
+  totalPhotos: number
+}
+
+// English tag name → Japanese display name mapping (mirrors SCENE_LABELS in renderer)
+const TAG_DISPLAY_NAMES: Record<string, string> = {
+  'a person wearing a bird mask or pigeon mask': 'ハトマスク',
+  'outdoor scene': '屋外',
+  'indoor scene': '屋内',
+  'party or celebration': 'パーティー',
+  'night scene or illumination': '夜景',
+  'sunset or sunrise': '夕焼け',
+  'landscape or scenery': '風景',
+  'food or meal': '食事',
+  'travel or sightseeing': '旅行',
+  'plastic model or gundam figure': 'プラモデル'
+}
+
+// Tags excluded from title generation
+const EXCLUDED_TAGS = new Set([
+  'person',
+  'outdoor scene',
+  'indoor scene',
+  'food or meal',
+  'dining table',
+  'chair',
+  'car'
+])
+
+function getEventDatesInternal(d: SqlJsDatabase, eventId: number): string[] {
+  const result = d.exec(
+    'SELECT date FROM event_dates WHERE event_id = ? ORDER BY date ASC',
+    [eventId]
+  )
+  if (result.length === 0) return []
+  return result[0].values.map((row) => row[0] as string)
+}
+
+export function getEventsByTimeline(timelineId: number): EventRow[] {
+  const d = getDb()
+  const result = d.exec(
+    `SELECT id, timeline_id, title, start_date, end_date, type
+     FROM events
+     WHERE timeline_id = ?
+     ORDER BY start_date DESC`,
+    [timelineId]
+  )
+  if (result.length === 0) return []
+  return result[0].values.map((row) => {
+    const type = (row[5] as string) as 'range' | 'dates'
+    const event: EventRow = {
+      id: row[0] as number,
+      timelineId: row[1] as number,
+      title: row[2] as string,
+      type,
+      startDate: row[3] as string,
+      endDate: row[4] as string
+    }
+    if (type === 'dates') {
+      event.dates = getEventDatesInternal(d, event.id)
+    }
+    return event
+  })
+}
+
+export function createEvent(
+  timelineId: number,
+  title: string,
+  startDate: string,
+  endDate: string,
+  type: 'range' | 'dates' = 'range',
+  dates?: string[]
+): EventRow {
+  const d = getDb()
+  d.run(
+    `INSERT INTO events (timeline_id, title, start_date, end_date, type)
+     VALUES (?, ?, ?, ?, ?)`,
+    [timelineId, title, startDate, endDate, type]
+  )
+  const idResult = d.exec('SELECT last_insert_rowid()')
+  const id = idResult[0].values[0][0] as number
+
+  if (type === 'dates' && dates && dates.length > 0) {
+    for (const date of dates) {
+      d.run('INSERT OR IGNORE INTO event_dates (event_id, date) VALUES (?, ?)', [id, date])
+    }
+  }
+
+  saveDatabase()
+  const event: EventRow = { id, timelineId, title, type, startDate, endDate }
+  if (type === 'dates') {
+    event.dates = dates ? [...dates].sort() : []
+  }
+  return event
+}
+
+export function updateEvent(
+  eventId: number,
+  updates: { title?: string; startDate?: string; endDate?: string }
+): void {
+  const d = getDb()
+  const sets: string[] = []
+  const params: (string | number)[] = []
+
+  if (updates.title !== undefined) {
+    sets.push('title = ?')
+    params.push(updates.title)
+  }
+  if (updates.startDate !== undefined) {
+    sets.push('start_date = ?')
+    params.push(updates.startDate)
+  }
+  if (updates.endDate !== undefined) {
+    sets.push('end_date = ?')
+    params.push(updates.endDate)
+  }
+
+  if (sets.length === 0) return
+
+  sets.push("updated_at = datetime('now')")
+  params.push(eventId)
+
+  d.run(`UPDATE events SET ${sets.join(', ')} WHERE id = ?`, params)
+  saveDatabase()
+}
+
+export function deleteEvent(eventId: number): void {
+  const d = getDb()
+  d.run('DELETE FROM event_dates WHERE event_id = ?', [eventId])
+  d.run('DELETE FROM events WHERE id = ?', [eventId])
+  saveDatabase()
+}
+
+export function getEventPhotoCount(
+  folderIds: number[],
+  startDate: string,
+  endDate: string
+): number {
+  if (folderIds.length === 0) return 0
+  const d = getDb()
+  const { ph, params } = inPlaceholders(folderIds)
+  const result = d.exec(
+    `SELECT COUNT(*) FROM photos
+     WHERE folder_id IN (${ph})
+       AND date(COALESCE(taken_at, file_modified_at)) >= ?
+       AND date(COALESCE(taken_at, file_modified_at)) <= ?`,
+    [...params, startDate, endDate]
+  )
+  if (result.length === 0) return 0
+  return result[0].values[0][0] as number
+}
+
+export function computeEventSuggestions(
+  timelineId: number,
+  folderIds: number[]
+): EventSuggestion[] {
+  if (folderIds.length === 0) return []
+
+  const minDays = 2
+  const maxGap = 1
+  const minPhotosPerDay = 3
+
+  // Get date summaries with photo counts
+  const summaries = getDateSummary(folderIds)
+
+  // Filter dates with enough photos
+  const activeDates = summaries
+    .filter((s) => s.photoCount >= minPhotosPerDay)
+    .map((s) => s.date)
+    .sort() // ascending
+
+  if (activeDates.length === 0) return []
+
+  // Group consecutive dates (within maxGap)
+  const groups: { start: string; end: string }[] = []
+  let groupStart = activeDates[0]
+  let groupEnd = activeDates[0]
+
+  for (let i = 1; i < activeDates.length; i++) {
+    const prev = new Date(groupEnd + 'T00:00:00')
+    const curr = new Date(activeDates[i] + 'T00:00:00')
+    const diffDays = Math.round((curr.getTime() - prev.getTime()) / (1000 * 60 * 60 * 24))
+
+    if (diffDays <= maxGap + 1) {
+      groupEnd = activeDates[i]
+    } else {
+      groups.push({ start: groupStart, end: groupEnd })
+      groupStart = activeDates[i]
+      groupEnd = activeDates[i]
+    }
+  }
+  groups.push({ start: groupStart, end: groupEnd })
+
+  // Filter by minimum calendar days
+  const filtered = groups.filter((g) => {
+    const start = new Date(g.start + 'T00:00:00')
+    const end = new Date(g.end + 'T00:00:00')
+    const calendarDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
+    return calendarDays >= minDays
+  })
+
+  // Exclude suggestions that overlap any confirmed event
+  const confirmedEvents = getEventsByTimeline(timelineId)
+
+  const suggestions: EventSuggestion[] = []
+  for (const g of filtered) {
+    const isOverlapping = confirmedEvents.some(
+      (e) => !(e.endDate < g.start || e.startDate > g.end)
+    )
+    if (isOverlapping) continue
+
+    const totalPhotos = getEventPhotoCount(folderIds, g.start, g.end)
+    suggestions.push({ startDate: g.start, endDate: g.end, totalPhotos })
+  }
+
+  // Return at most 5, sorted by startDate descending (most recent first)
+  return suggestions.sort((a, b) => b.startDate.localeCompare(a.startDate)).slice(0, 5)
+}
+
+export function generateEventTitle(
+  folderIds: number[],
+  startDate: string,
+  endDate: string
+): string {
+  if (folderIds.length === 0) return formatFallbackTitle(startDate, endDate)
+
+  const d = getDb()
+  const { ph, params } = inPlaceholders(folderIds)
+
+  // Get tag counts for photos in the date range
+  const result = d.exec(
+    `SELECT t.name, COUNT(*) as cnt
+     FROM photo_tags pt
+     JOIN tags t ON t.id = pt.tag_id
+     JOIN photos p ON p.id = pt.photo_id
+     WHERE p.folder_id IN (${ph})
+       AND date(COALESCE(p.taken_at, p.file_modified_at)) >= ?
+       AND date(COALESCE(p.taken_at, p.file_modified_at)) <= ?
+     GROUP BY t.name
+     ORDER BY cnt DESC`,
+    [...params, startDate, endDate]
+  )
+
+  if (result.length === 0 || result[0].values.length === 0) {
+    return formatFallbackTitle(startDate, endDate)
+  }
+
+  // Filter out excluded tags and get display names
+  const topTags: string[] = []
+  for (const row of result[0].values) {
+    const tagName = row[0] as string
+    if (EXCLUDED_TAGS.has(tagName)) continue
+    const displayName = TAG_DISPLAY_NAMES[tagName] || tagName
+    topTags.push(displayName)
+    if (topTags.length >= 2) break
+  }
+
+  if (topTags.length === 0) return formatFallbackTitle(startDate, endDate)
+  if (topTags.length === 1) return topTags[0]
+  return `${topTags[0]}・${topTags[1]}`
+}
+
+function formatFallbackTitle(startDate: string, endDate: string): string {
+  const s = new Date(startDate + 'T00:00:00')
+  const e = new Date(endDate + 'T00:00:00')
+  return `できごと (${s.getMonth() + 1}/${s.getDate()}〜${e.getMonth() + 1}/${e.getDate()})`
+}
+
+// --- Event dates (dates-type events) ---
+
+function recalcEventDateRange(d: SqlJsDatabase, eventId: number): void {
+  const result = d.exec(
+    'SELECT MIN(date), MAX(date) FROM event_dates WHERE event_id = ?',
+    [eventId]
+  )
+  if (result.length > 0 && result[0].values[0][0] !== null) {
+    const minDate = result[0].values[0][0] as string
+    const maxDate = result[0].values[0][1] as string
+    d.run(
+      "UPDATE events SET start_date = ?, end_date = ?, updated_at = datetime('now') WHERE id = ?",
+      [minDate, maxDate, eventId]
+    )
+  }
+}
+
+export function addDateToEvent(eventId: number, date: string): void {
+  const d = getDb()
+  d.run('INSERT OR IGNORE INTO event_dates (event_id, date) VALUES (?, ?)', [eventId, date])
+  recalcEventDateRange(d, eventId)
+  saveDatabase()
+}
+
+export function addDatesToEvent(eventId: number, dates: string[]): void {
+  if (dates.length === 0) return
+  const d = getDb()
+  for (const date of dates) {
+    d.run('INSERT OR IGNORE INTO event_dates (event_id, date) VALUES (?, ?)', [eventId, date])
+  }
+  recalcEventDateRange(d, eventId)
+  saveDatabase()
+}
+
+export function removeDateFromEvent(eventId: number, date: string): boolean {
+  const d = getDb()
+  d.run('DELETE FROM event_dates WHERE event_id = ? AND date = ?', [eventId, date])
+
+  // 日付が0件になったらイベントごと削除
+  const remaining = d.exec(
+    'SELECT COUNT(*) FROM event_dates WHERE event_id = ?',
+    [eventId]
+  )
+  const count = remaining.length > 0 ? (remaining[0].values[0][0] as number) : 0
+  if (count === 0) {
+    d.run('DELETE FROM events WHERE id = ?', [eventId])
+    saveDatabase()
+    return true // イベント削除された
+  }
+
+  recalcEventDateRange(d, eventId)
+  saveDatabase()
+  return false // イベントは残っている
+}
+
+export function generateEventTitleForDates(
+  folderIds: number[],
+  dates: string[]
+): string {
+  if (folderIds.length === 0 || dates.length === 0) {
+    return `できごと (${dates.length}日)`
+  }
+
+  const d = getDb()
+  const { ph, params } = inPlaceholders(folderIds)
+  const datePh = dates.map(() => '?').join(',')
+
+  const result = d.exec(
+    `SELECT t.name, COUNT(*) as cnt
+     FROM photo_tags pt
+     JOIN tags t ON t.id = pt.tag_id
+     JOIN photos p ON p.id = pt.photo_id
+     WHERE p.folder_id IN (${ph})
+       AND date(COALESCE(p.taken_at, p.file_modified_at)) IN (${datePh})
+     GROUP BY t.name
+     ORDER BY cnt DESC`,
+    [...params, ...dates]
+  )
+
+  if (result.length === 0 || result[0].values.length === 0) {
+    return `できごと (${dates.length}日)`
+  }
+
+  const topTags: string[] = []
+  for (const row of result[0].values) {
+    const tagName = row[0] as string
+    if (EXCLUDED_TAGS.has(tagName)) continue
+    const displayName = TAG_DISPLAY_NAMES[tagName] || tagName
+    topTags.push(displayName)
+    if (topTags.length >= 2) break
+  }
+
+  if (topTags.length === 0) return `できごと (${dates.length}日)`
+  if (topTags.length === 1) return topTags[0]
+  return `${topTags[0]}・${topTags[1]}`
 }

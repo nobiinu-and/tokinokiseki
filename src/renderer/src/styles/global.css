@@ -1237,3 +1237,242 @@ body {
   gap: var(--spacing-xs);
   padding: var(--spacing-sm);
 }
+
+/* ========== Event Labels (on date cards) ========== */
+
+.date-card-event-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.date-card-event-label {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+}
+
+/* ========== Suggestion Banner ========== */
+
+.suggestion-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  margin: 4px 0;
+  border: 1px dashed rgba(59, 130, 246, 0.4);
+  border-radius: 8px;
+  background: rgba(59, 130, 246, 0.05);
+  font-size: 13px;
+}
+
+.suggestion-banner-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.suggestion-banner-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* ========== Range Select Bar ========== */
+
+.range-select-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: rgba(245, 197, 24, 0.1);
+  border-bottom: 1px solid rgba(245, 197, 24, 0.3);
+  flex-shrink: 0;
+  font-size: 13px;
+}
+
+/* Range selection date card states */
+.date-card-selected {
+  outline: 2px solid var(--accent-gold);
+  outline-offset: -2px;
+}
+
+.date-card-in-range {
+  background: rgba(245, 197, 24, 0.08);
+}
+
+/* ========== Small button variant ========== */
+
+.btn-small {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+/* ========== Event Title Dialog ========== */
+
+.event-dialog-range {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-md);
+}
+
+.event-dialog-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.event-dialog-field label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* ========== Event Manager ========== */
+
+.event-manager-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.event-manager-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-primary);
+  border-radius: var(--border-radius);
+}
+
+.event-manager-item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.event-manager-title {
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.event-manager-title:hover {
+  color: var(--accent-gold);
+}
+
+.event-manager-title-input {
+  width: 100%;
+}
+
+.event-manager-range {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.event-manager-delete {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.event-manager-empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: var(--spacing-lg);
+}
+
+.event-manager-title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+/* ========== Event Create Dropdown ========== */
+
+.event-create-dropdown {
+  position: relative;
+}
+
+.event-create-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: var(--bg-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--border-radius);
+  padding: 4px 0;
+  z-index: 10;
+  min-width: 200px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.event-create-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.event-create-menu button:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* ========== Event Date Chips (EventManager dates type) ========== */
+
+.event-manager-dates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.event-date-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: rgba(59, 130, 246, 0.15);
+  color: #93c5fd;
+}
+
+.event-date-chip-remove {
+  border: none;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 0 2px;
+  font-size: 14px;
+  opacity: 0.6;
+}
+
+.event-date-chip-remove:hover {
+  opacity: 1;
+}
+
+/* ========== Event Type Badge ========== */
+
+.event-type-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+}
+
+/* ========== Range Select Bar Actions ========== */
+
+.range-select-bar-actions {
+  display: flex;
+  gap: var(--spacing-xs);
+}

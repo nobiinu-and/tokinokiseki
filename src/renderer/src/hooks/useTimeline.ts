@@ -1,10 +1,15 @@
 import { useState, useEffect, useCallback } from 'react'
-import type { DateCardSummary } from '../types/models'
+import type { DateCardSummary, EventConfirmed, EventSuggestion } from '../types/models'
 
-export interface DateCardWithGroup extends DateCardSummary {
+export interface DateCardWithEvents extends DateCardSummary {
   isLargeCard: boolean
-  consecutiveGroupId: number | null
+  events: EventConfirmed[]
+  suggestions: EventSuggestion[]
 }
+
+export type TimelineItem =
+  | { type: 'date-card'; card: DateCardWithEvents }
+  | { type: 'suggestion-banner'; suggestion: EventSuggestion }
 
 interface YearMonthGroup {
   label: string // "2024年8月"
@@ -13,79 +18,40 @@ interface YearMonthGroup {
 }
 
 interface UseTimelineResult {
-  dateCards: DateCardWithGroup[]
+  items: TimelineItem[]
   groups: YearMonthGroup[]
   groupCounts: number[]
   loading: boolean
   refresh: () => void
+  events: EventConfirmed[]
+  dismissedSuggestions: Set<string>
+  dismissSuggestion: (startDate: string, endDate: string) => void
 }
 
-function computeConsecutiveGroups(summaries: DateCardSummary[]): DateCardWithGroup[] {
-  if (summaries.length === 0) return []
-
-  const dateCards: DateCardWithGroup[] = summaries.map((s) => ({
-    ...s,
-    isLargeCard: s.photoCount >= 3,
-    consecutiveGroupId: null
-  }))
-
-  // Sorted descending by date already from DB
-  let groupId = 0
-
-  for (let i = 0; i < dateCards.length; i++) {
-    if (!dateCards[i].isLargeCard) continue
-
-    if (dateCards[i].consecutiveGroupId === null) {
-      dateCards[i].consecutiveGroupId = groupId
-
-      // Look at subsequent items (next in list = earlier date)
-      for (let j = i + 1; j < dateCards.length; j++) {
-        if (!dateCards[j].isLargeCard) {
-          // Check if this non-large-card is just a 1-day gap between large cards
-          if (j + 1 < dateCards.length && dateCards[j + 1].isLargeCard) {
-            const dateBefore = new Date(dateCards[i].date)
-            const dateAfter = new Date(dateCards[j + 1].date)
-            const daysDiff = Math.abs(
-              (dateBefore.getTime() - dateAfter.getTime()) / (1000 * 60 * 60 * 24)
-            )
-            if (daysDiff <= 3) {
-              // Include the gap day in the group
-              dateCards[j].consecutiveGroupId = groupId
-              continue
-            }
-          }
-          break
-        }
-
-        const prevDate = new Date(dateCards[j - 1].date)
-        const currDate = new Date(dateCards[j].date)
-        const daysDiff = Math.abs(
-          (prevDate.getTime() - currDate.getTime()) / (1000 * 60 * 60 * 24)
-        )
-
-        if (daysDiff <= 2) {
-          dateCards[j].consecutiveGroupId = groupId
-        } else {
-          break
-        }
-      }
-      groupId++
-    }
+function isDateInEvent(date: string, event: EventConfirmed): boolean {
+  if (event.type === 'dates') {
+    return event.dates?.includes(date) ?? false
   }
-
-  return dateCards
+  return date >= event.startDate && date <= event.endDate
 }
 
-function computeYearMonthGroups(dateCards: DateCardWithGroup[]): YearMonthGroup[] {
-  if (dateCards.length === 0) return []
+function suggestionKey(s: EventSuggestion): string {
+  return `${s.startDate}:${s.endDate}`
+}
+
+function computeYearMonthGroups(items: TimelineItem[]): YearMonthGroup[] {
+  if (items.length === 0) return []
 
   const groups: YearMonthGroup[] = []
   let currentYear = -1
   let currentMonth = -1
   let currentCount = 0
 
-  for (const card of dateCards) {
-    const d = new Date(card.date)
+  for (const item of items) {
+    const date =
+      item.type === 'date-card' ? item.card.date : item.suggestion.endDate
+
+    const d = new Date(date + 'T00:00:00')
     const y = d.getFullYear()
     const m = d.getMonth() + 1
 
@@ -110,26 +76,99 @@ function computeYearMonthGroups(dateCards: DateCardWithGroup[]): YearMonthGroup[
 }
 
 export function useTimeline(timelineId: number | null): UseTimelineResult {
-  const [dateCards, setDateCards] = useState<DateCardWithGroup[]>([])
+  const [items, setItems] = useState<TimelineItem[]>([])
   const [groups, setGroups] = useState<YearMonthGroup[]>([])
+  const [events, setEvents] = useState<EventConfirmed[]>([])
   const [loading, setLoading] = useState(false)
+  const [dismissedSuggestions, setDismissedSuggestions] = useState<Set<string>>(new Set())
+
+  const dismissSuggestion = useCallback((startDate: string, endDate: string) => {
+    setDismissedSuggestions((prev) => {
+      const next = new Set(prev)
+      next.add(`${startDate}:${endDate}`)
+      return next
+    })
+  }, [])
 
   const refresh = useCallback(() => {
     if (timelineId === null) return
     setLoading(true)
-    window.api
-      .getDateSummary(timelineId)
-      .then((summaries) => {
-        const computed = computeConsecutiveGroups(summaries)
-        setDateCards(computed)
-        setGroups(computeYearMonthGroups(computed))
+
+    Promise.all([
+      window.api.getDateSummary(timelineId),
+      window.api.getEvents(timelineId),
+      window.api.getEventSuggestions(timelineId)
+    ])
+      .then(([summaries, confirmedEvents, suggestions]) => {
+        setEvents(confirmedEvents)
+
+        // Build DateCardWithEvents
+        const dateCards: DateCardWithEvents[] = summaries.map((s) => ({
+          ...s,
+          isLargeCard: s.photoCount >= 3,
+          events: confirmedEvents.filter((e) => isDateInEvent(s.date, e)),
+          suggestions: suggestions.filter(
+            (sg) =>
+              s.date >= sg.startDate &&
+              s.date <= sg.endDate &&
+              !dismissedSuggestions.has(suggestionKey(sg))
+          )
+        }))
+
+        // Filter non-dismissed suggestions
+        const activeSuggestions = suggestions.filter(
+          (sg) => !dismissedSuggestions.has(suggestionKey(sg))
+        )
+
+        // Build timeline items: date cards in descending order, with suggestion banners inserted
+        // For each suggestion, insert banner before the first date card in its range
+        const suggestionInsertDates = new Map<string, EventSuggestion>()
+        for (const sg of activeSuggestions) {
+          // Find the first date card (descending order = most recent first) that falls in this suggestion's range
+          for (const card of dateCards) {
+            if (card.date >= sg.startDate && card.date <= sg.endDate) {
+              // Insert banner before this date (the most recent date in the range)
+              const key = card.date
+              // Only store if not already set (first suggestion for this date wins)
+              if (!suggestionInsertDates.has(key)) {
+                suggestionInsertDates.set(key, sg)
+              }
+              break
+            }
+          }
+        }
+
+        const timelineItems: TimelineItem[] = []
+        for (const card of dateCards) {
+          const sg = suggestionInsertDates.get(card.date)
+          if (sg) {
+            timelineItems.push({ type: 'suggestion-banner', suggestion: sg })
+            suggestionInsertDates.delete(card.date)
+          }
+          timelineItems.push({ type: 'date-card', card })
+        }
+
+        setItems(timelineItems)
+        setGroups(computeYearMonthGroups(timelineItems))
+      })
+      .catch((err) => {
+        console.error('Failed to load timeline:', err)
       })
       .finally(() => setLoading(false))
-  }, [timelineId])
+  }, [timelineId, dismissedSuggestions])
 
   useEffect(() => {
     refresh()
   }, [refresh])
 
-  return { dateCards, groups, groupCounts: groups.map((g) => g.count), loading, refresh }
+  return {
+    items,
+    groups,
+    groupCounts: groups.map((g) => g.count),
+    loading,
+    refresh,
+    events,
+    dismissedSuggestions,
+    dismissSuggestion
+  }
 }

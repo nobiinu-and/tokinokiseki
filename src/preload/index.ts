@@ -103,5 +103,37 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke(IPC_CHANNELS.ADD_FOLDER_TO_TIMELINE, timelineId, folderPath),
 
   removeFolderFromTimeline: (timelineId: number, folderId: number) =>
-    ipcRenderer.invoke(IPC_CHANNELS.REMOVE_FOLDER_FROM_TIMELINE, timelineId, folderId)
+    ipcRenderer.invoke(IPC_CHANNELS.REMOVE_FOLDER_FROM_TIMELINE, timelineId, folderId),
+
+  // --- Events ---
+
+  getEvents: (timelineId: number) =>
+    ipcRenderer.invoke(IPC_CHANNELS.GET_EVENTS, timelineId),
+
+  createEvent: (timelineId: number, title: string, startDate: string, endDate: string, type?: 'range' | 'dates', dates?: string[]) =>
+    ipcRenderer.invoke(IPC_CHANNELS.CREATE_EVENT, timelineId, title, startDate, endDate, type, dates),
+
+  updateEvent: (eventId: number, title?: string, startDate?: string, endDate?: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.UPDATE_EVENT, eventId, title, startDate, endDate),
+
+  deleteEvent: (eventId: number) =>
+    ipcRenderer.invoke(IPC_CHANNELS.DELETE_EVENT, eventId),
+
+  getEventSuggestions: (timelineId: number) =>
+    ipcRenderer.invoke(IPC_CHANNELS.GET_EVENT_SUGGESTIONS, timelineId),
+
+  generateEventTitle: (timelineId: number, startDate: string, endDate: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.GENERATE_EVENT_TITLE, timelineId, startDate, endDate),
+
+  addDateToEvent: (eventId: number, date: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.ADD_DATE_TO_EVENT, eventId, date),
+
+  addDatesToEvent: (eventId: number, dates: string[]) =>
+    ipcRenderer.invoke(IPC_CHANNELS.ADD_DATES_TO_EVENT, eventId, dates),
+
+  removeDateFromEvent: (eventId: number, date: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.REMOVE_DATE_FROM_EVENT, eventId, date),
+
+  generateEventTitleForDates: (timelineId: number, dates: string[]) =>
+    ipcRenderer.invoke(IPC_CHANNELS.GENERATE_EVENT_TITLE_FOR_DATES, timelineId, dates)
 })

@@ -129,21 +129,25 @@ export async function scanFolder(folderPath: string, window: BrowserWindow): Pro
       continue
     }
 
-    // Extract EXIF date and orientation in a single read
+    // Extract EXIF date and orientation
     let takenAt: string | null = null
     let orientation: number = 1
     try {
       const exif = await exifr.parse(filePath, {
-        pick: ['DateTimeOriginal', 'Orientation']
+        pick: ['DateTimeOriginal']
       })
       if (exif?.DateTimeOriginal instanceof Date) {
         takenAt = exif.DateTimeOriginal.toISOString()
       }
-      if (typeof exif?.Orientation === 'number') {
-        orientation = exif.Orientation
-      }
     } catch {
       // EXIF not available
+    }
+    try {
+      // exifr.orientation() returns numeric EXIF orientation (1-8)
+      // Note: exifr.parse() translates Orientation to a string, so we use the dedicated helper
+      orientation = (await exifr.orientation(filePath)) || 1
+    } catch {
+      // No orientation data
     }
 
     // Fallback to file modified date

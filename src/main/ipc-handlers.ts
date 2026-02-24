@@ -289,4 +289,88 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
       db.removeFolderFromTimeline(timelineId, folderId)
     }
   )
+
+  // --- Event handlers ---
+
+  ipcMain.handle(IPC_CHANNELS.GET_EVENTS, async (_event, timelineId: number) => {
+    await db.ensureDb()
+    return db.getEventsByTimeline(timelineId)
+  })
+
+  ipcMain.handle(
+    IPC_CHANNELS.CREATE_EVENT,
+    async (
+      _event,
+      timelineId: number,
+      title: string,
+      startDate: string,
+      endDate: string,
+      type?: 'range' | 'dates',
+      dates?: string[]
+    ) => {
+      await db.ensureDb()
+      return db.createEvent(timelineId, title, startDate, endDate, type, dates)
+    }
+  )
+
+  ipcMain.handle(
+    IPC_CHANNELS.UPDATE_EVENT,
+    async (_event, eventId: number, title?: string, startDate?: string, endDate?: string) => {
+      await db.ensureDb()
+      db.updateEvent(eventId, { title, startDate, endDate })
+    }
+  )
+
+  ipcMain.handle(IPC_CHANNELS.DELETE_EVENT, async (_event, eventId: number) => {
+    await db.ensureDb()
+    db.deleteEvent(eventId)
+  })
+
+  ipcMain.handle(IPC_CHANNELS.GET_EVENT_SUGGESTIONS, async (_event, timelineId: number) => {
+    await db.ensureDb()
+    const folderIds = db.resolveTimelineFolderIds(timelineId)
+    return db.computeEventSuggestions(timelineId, folderIds)
+  })
+
+  ipcMain.handle(
+    IPC_CHANNELS.GENERATE_EVENT_TITLE,
+    async (_event, timelineId: number, startDate: string, endDate: string) => {
+      await db.ensureDb()
+      const folderIds = db.resolveTimelineFolderIds(timelineId)
+      return db.generateEventTitle(folderIds, startDate, endDate)
+    }
+  )
+
+  ipcMain.handle(
+    IPC_CHANNELS.ADD_DATE_TO_EVENT,
+    async (_event, eventId: number, date: string) => {
+      await db.ensureDb()
+      db.addDateToEvent(eventId, date)
+    }
+  )
+
+  ipcMain.handle(
+    IPC_CHANNELS.ADD_DATES_TO_EVENT,
+    async (_event, eventId: number, dates: string[]) => {
+      await db.ensureDb()
+      db.addDatesToEvent(eventId, dates)
+    }
+  )
+
+  ipcMain.handle(
+    IPC_CHANNELS.REMOVE_DATE_FROM_EVENT,
+    async (_event, eventId: number, date: string) => {
+      await db.ensureDb()
+      return db.removeDateFromEvent(eventId, date)
+    }
+  )
+
+  ipcMain.handle(
+    IPC_CHANNELS.GENERATE_EVENT_TITLE_FOR_DATES,
+    async (_event, timelineId: number, dates: string[]) => {
+      await db.ensureDb()
+      const folderIds = db.resolveTimelineFolderIds(timelineId)
+      return db.generateEventTitleForDates(folderIds, dates)
+    }
+  )
 }
