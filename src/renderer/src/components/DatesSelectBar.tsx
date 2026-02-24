@@ -15,7 +15,7 @@ export function DatesSelectBar({ selectedCount, onDone, onCancel }: Props): JSX.
         <button
           className="btn btn-primary btn-small"
           onClick={onDone}
-          disabled={selectedCount < 2}
+          disabled={selectedCount < 1}
         >
           完了
         </button>
