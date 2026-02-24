@@ -107,6 +107,9 @@ export function HomeScreen(): JSX.Element {
       })
       setSuggestion(computeSuggestion(dateSummaries))
       setLoadingData(false)
+    }).catch((err) => {
+      console.error('Failed to load home data:', err)
+      setLoadingData(false)
     })
   }, [timelineId])
 
@@ -116,20 +119,24 @@ export function HomeScreen(): JSX.Element {
 
   const refreshData = async (): Promise<void> => {
     if (!timelineId) return
-    const [tlFolders, bestPhotos, events, tagStats, dateSummaries] = await Promise.all([
-      window.api.getTimelineFolders(timelineId),
-      window.api.getBestPhotos(timelineId),
-      window.api.getEvents(timelineId),
-      window.api.getTagStats(timelineId),
-      window.api.getDateSummary(timelineId)
-    ])
-    setFolders(tlFolders)
-    setSummary({
-      bestCount: bestPhotos.length,
-      eventCount: events.length,
-      tagCount: tagStats.length
-    })
-    setSuggestion(computeSuggestion(dateSummaries))
+    try {
+      const [tlFolders, bestPhotos, events, tagStats, dateSummaries] = await Promise.all([
+        window.api.getTimelineFolders(timelineId),
+        window.api.getBestPhotos(timelineId),
+        window.api.getEvents(timelineId),
+        window.api.getTagStats(timelineId),
+        window.api.getDateSummary(timelineId)
+      ])
+      setFolders(tlFolders)
+      setSummary({
+        bestCount: bestPhotos.length,
+        eventCount: events.length,
+        tagCount: tagStats.length
+      })
+      setSuggestion(computeSuggestion(dateSummaries))
+    } catch (err) {
+      console.error('Failed to refresh home data:', err)
+    }
   }
 
   const handleAddFolder = async (): Promise<void> => {

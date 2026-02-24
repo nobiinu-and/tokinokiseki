@@ -40,6 +40,9 @@ export function GalleryScreen(): JSX.Element {
       setTagStats(tags)
       setBestCount(bestPhotos.length)
       setLoading(false)
+    }).catch((err) => {
+      console.error('Failed to load gallery data:', err)
+      setLoading(false)
     })
   }, [timelineId])
 
@@ -67,7 +70,7 @@ export function GalleryScreen(): JSX.Element {
         {isEmpty ? (
           <div className="screen-center">
             <p>まだギャラリーは空っぽです</p>
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+            <p className="text-hint">
               タイムラインを眺めて、気になった写真にベストをつけてみましょう
             </p>
             <button

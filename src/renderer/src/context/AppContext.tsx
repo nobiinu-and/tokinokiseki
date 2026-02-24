@@ -19,6 +19,9 @@ export function AppProvider({ children }: { children: ReactNode }): JSX.Element 
     window.api.getDefaultTimeline().then((timeline) => {
       setTimelineId(timeline.id)
       setLoading(false)
+    }).catch((err) => {
+      console.error('Failed to load default timeline:', err)
+      setLoading(false)
     })
   }, [])
 

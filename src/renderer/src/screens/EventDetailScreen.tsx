@@ -1,26 +1,13 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useApp } from '../context/AppContext'
+import { usePhotoTags } from '../hooks/usePhotoTags'
 import { PhotoThumbnail } from '../components/PhotoThumbnail'
 import { Lightbox } from '../components/Lightbox'
 import { TopBar } from '../components/TopBar'
-import type { Photo, EventConfirmed, PhotoTag } from '../types/models'
-
-interface DateGroup {
-  date: string
-  displayDate: string
-  photos: Photo[]
-}
-
-function formatDate(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00')
-  return d.toLocaleDateString('ja-JP', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    weekday: 'short'
-  })
-}
+import { formatDate } from '../utils/dateUtils'
+import type { Photo, EventConfirmed } from '../types/models'
+import type { DateGroup } from '../utils/dateUtils'
 
 function getEventDates(event: EventConfirmed): string[] {
   if (event.type === 'dates' && event.dates) {
@@ -45,7 +32,8 @@ export function EventDetailScreen(): JSX.Element {
   const [photos, setPhotos] = useState<Photo[]>([])
   const [loading, setLoading] = useState(true)
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null)
-  const [photoTags, setPhotoTags] = useState<Record<number, PhotoTag[]>>({})
+
+  const { photoTags, allTagNames, handleAddTag, handleRemoveTag } = usePhotoTags(timelineId, photos)
 
   useEffect(() => {
     if (!timelineId || !id) return
@@ -59,29 +47,16 @@ export function EventDetailScreen(): JSX.Element {
       setEvent(found)
 
       const dates = getEventDates(found)
-      const allPhotos: Photo[] = []
-      for (const date of dates) {
-        const datePhotos = await window.api.getPhotosByDate(timelineId, date)
-        allPhotos.push(...datePhotos)
-      }
-      setPhotos(allPhotos)
+      const photoArrays = await Promise.all(
+        dates.map((date) => window.api.getPhotosByDate(timelineId, date))
+      )
+      setPhotos(photoArrays.flat())
+      setLoading(false)
+    }).catch((err) => {
+      console.error('Failed to load event details:', err)
       setLoading(false)
     })
   }, [timelineId, id])
-
-  // Load tags for photos
-  useEffect(() => {
-    if (photos.length === 0) return
-    const loadTags = async (): Promise<void> => {
-      const tagMap: Record<number, PhotoTag[]> = {}
-      for (const photo of photos) {
-        const tags = await window.api.getTagsForPhoto(photo.id)
-        if (tags.length > 0) tagMap[photo.id] = tags
-      }
-      setPhotoTags(tagMap)
-    }
-    loadTags()
-  }, [photos])
 
   const dateGroups = useMemo((): DateGroup[] => {
     const map: Record<string, Photo[]> = {}
@@ -106,30 +81,6 @@ export function EventDetailScreen(): JSX.Element {
     setPhotos((prev) =>
       prev.map((p) => (p.id === photoId ? { ...p, isBest: newValue } : p))
     )
-  }, [])
-
-  const allTagNames = useMemo(() => {
-    const names = new Set<string>()
-    Object.values(photoTags).forEach((tags) => tags.forEach((t) => names.add(t.name)))
-    return Array.from(names)
-  }, [photoTags])
-
-  const handleAddTag = useCallback(async (photoId: number, tagName: string): Promise<void> => {
-    const updatedTags = await window.api.addTagToPhoto(photoId, tagName)
-    setPhotoTags((prev) => ({ ...prev, [photoId]: updatedTags }))
-  }, [])
-
-  const handleRemoveTag = useCallback(async (photoId: number, tagName: string): Promise<void> => {
-    const updatedTags = await window.api.removeTagFromPhoto(photoId, tagName)
-    setPhotoTags((prev) => {
-      const next = { ...prev }
-      if (updatedTags.length > 0) {
-        next[photoId] = updatedTags
-      } else {
-        delete next[photoId]
-      }
-      return next
-    })
   }, [])
 
   const openLightbox = useCallback(
