@@ -31,11 +31,7 @@ export function SlideshowScreen(): JSX.Element {
   }, [timelineId, date])
 
   const onExit = (): void => {
-    if (date) {
-      navigate(`/timeline/${date}`)
-    } else {
-      navigate('/timeline')
-    }
+    navigate(-1)
   }
 
   const { currentPhoto, currentIndex, total, isPaused, togglePause } = useSlideshow({

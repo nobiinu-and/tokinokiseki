@@ -37,12 +37,26 @@ body {
   height: 100vh;
 }
 
+/* ========== App Layout ========== */
+
+.app-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.app-content {
+  flex: 1;
+  overflow: hidden;
+}
+
 /* ========== Shared ========== */
 
 .screen {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
   overflow: hidden;
 }
 
@@ -53,6 +67,11 @@ body {
   align-items: center;
   justify-content: center;
   gap: var(--spacing-md);
+}
+
+.text-hint {
+  font-size: 13px;
+  color: var(--text-muted);
 }
 
 /* Buttons */
@@ -1503,4 +1522,211 @@ body {
 .range-select-bar-actions {
   display: flex;
   gap: var(--spacing-xs);
+}
+
+/* ========== Tab Bar ========== */
+
+.tab-bar {
+  display: flex;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--bg-secondary);
+  flex-shrink: 0;
+}
+
+.tab-bar-item {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: var(--spacing-sm) 0;
+  cursor: pointer;
+  transition: color 0.15s, background-color 0.15s;
+}
+
+.tab-bar-item:hover {
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.tab-bar-item-active {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ========== Home Screen ========== */
+
+.home-screen {
+  align-items: center;
+  justify-content: center;
+}
+
+.home-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-lg);
+  max-width: 600px;
+  width: 100%;
+  padding: var(--spacing-xl);
+  overflow-y: auto;
+}
+
+.home-summary-cards {
+  display: flex;
+  gap: var(--spacing-md);
+  width: 100%;
+}
+
+.home-summary-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-md);
+  background: var(--bg-card);
+  border-radius: var(--border-radius);
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.15s;
+  color: var(--text-primary);
+}
+
+.home-summary-card:hover {
+  background: var(--bg-card-hover);
+}
+
+.home-summary-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--accent-gold);
+}
+
+.home-summary-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* ========== Gallery Screen ========== */
+
+.gallery-screen {
+  overflow: hidden;
+}
+
+.gallery-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--spacing-md);
+}
+
+.gallery-section {
+  margin-bottom: var(--spacing-lg);
+}
+
+.gallery-section-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-sm);
+}
+
+.gallery-section .tag-chips {
+  background: none;
+  border-bottom: none;
+  padding: 0;
+  max-height: none;
+}
+
+.gallery-event-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.gallery-event-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-card);
+  border-radius: var(--border-radius);
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.15s;
+  text-align: left;
+  color: var(--text-primary);
+  width: 100%;
+}
+
+.gallery-event-card:hover {
+  background: var(--bg-card-hover);
+}
+
+.gallery-event-card-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.gallery-event-title {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.gallery-event-range {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.gallery-best-card {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: var(--bg-card);
+  border-radius: var(--border-radius);
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.15s;
+  width: 100%;
+  color: var(--text-primary);
+}
+
+.gallery-best-card:hover {
+  background: var(--bg-card-hover);
+}
+
+.gallery-best-star {
+  font-size: 28px;
+  color: var(--accent-gold);
+}
+
+.gallery-best-info {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-xs);
+}
+
+.gallery-best-count {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--accent-gold);
+}
+
+.gallery-best-label {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+/* ========== Gallery Detail Screen ========== */
+
+.gallery-detail-screen {
+  overflow: hidden;
+}
+
+.gallery-detail-content {
+  flex: 1;
+  overflow-y: auto;
 }
