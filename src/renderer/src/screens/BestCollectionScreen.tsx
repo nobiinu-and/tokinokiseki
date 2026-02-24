@@ -147,9 +147,9 @@ export function BestCollectionScreen(): JSX.Element {
           </div>
         ) : photos.length === 0 ? (
           <div className="screen-center">
-            <p>ベスト写真がありません</p>
+            <p>まだベストはありません</p>
             <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-              タイムラインで写真に★を付けてみましょう
+              タイムラインで気に入った写真に★をつけると、ここに集まります
             </p>
           </div>
         ) : (

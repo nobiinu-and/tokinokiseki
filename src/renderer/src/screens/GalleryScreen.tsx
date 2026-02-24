@@ -66,10 +66,16 @@ export function GalleryScreen(): JSX.Element {
       <div className="gallery-content">
         {isEmpty ? (
           <div className="screen-center">
-            <p>まだコレクションがありません</p>
+            <p>まだギャラリーは空っぽです</p>
             <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-              タイムラインで写真にベストやタグを付けてみましょう
+              タイムラインを眺めて、気になった写真にベストをつけてみましょう
             </p>
+            <button
+              className="btn btn-secondary"
+              onClick={() => navigate('/timeline')}
+            >
+              タイムラインへ
+            </button>
           </div>
         ) : (
           <>
