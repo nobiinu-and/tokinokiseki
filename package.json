@@ -7,7 +7,9 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
-    "package": "electron-vite build && electron-builder --win --config"
+    "package": "electron-vite build && electron-builder --win --config",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@huggingface/transformers": "^3.8.1",
@@ -29,6 +31,7 @@
     "react-router-dom": "^6.28.0",
     "react-virtuoso": "^4.12.3",
     "typescript": "^5.7.2",
-    "vite": "^5.4.11"
+    "vite": "^5.4.11",
+    "vitest": "^4.0.18"
   }
 }
