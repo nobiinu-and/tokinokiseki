@@ -863,6 +863,63 @@ export function getEventPhotoCount(
   return result[0].values[0][0] as number
 }
 
+export function getEventBestCount(
+  folderIds: number[],
+  startDate: string,
+  endDate: string
+): number {
+  if (folderIds.length === 0) return 0
+  const d = getDb()
+  const { ph, params } = inPlaceholders(folderIds)
+  const result = d.exec(
+    `SELECT COUNT(*) FROM photos
+     WHERE folder_id IN (${ph})
+       AND is_best = 1
+       AND date(COALESCE(taken_at, file_modified_at)) >= ?
+       AND date(COALESCE(taken_at, file_modified_at)) <= ?`,
+    [...params, startDate, endDate]
+  )
+  if (result.length === 0) return 0
+  return result[0].values[0][0] as number
+}
+
+export function getEventThumbnail(
+  folderIds: number[],
+  startDate: string,
+  endDate: string
+): string | null {
+  if (folderIds.length === 0) return null
+  const d = getDb()
+  const { ph, params } = inPlaceholders(folderIds)
+  // Try best photo first, fallback to any photo
+  const bestResult = d.exec(
+    `SELECT file_path FROM photos
+     WHERE folder_id IN (${ph})
+       AND is_best = 1
+       AND date(COALESCE(taken_at, file_modified_at)) >= ?
+       AND date(COALESCE(taken_at, file_modified_at)) <= ?
+     ORDER BY COALESCE(taken_at, file_modified_at) ASC
+     LIMIT 1`,
+    [...params, startDate, endDate]
+  )
+  if (bestResult.length > 0 && bestResult[0].values.length > 0) {
+    return bestResult[0].values[0][0] as string
+  }
+  const anyResult = d.exec(
+    `SELECT file_path FROM photos
+     WHERE folder_id IN (${ph})
+       AND date(COALESCE(taken_at, file_modified_at)) >= ?
+       AND date(COALESCE(taken_at, file_modified_at)) <= ?
+     ORDER BY COALESCE(taken_at, file_modified_at) ASC
+     LIMIT 1`,
+    [...params, startDate, endDate]
+  )
+  if (anyResult.length > 0 && anyResult[0].values.length > 0) {
+    return anyResult[0].values[0][0] as string
+  }
+  return null
+}
+
 export function computeEventSuggestions(
   timelineId: number,
   folderIds: number[]

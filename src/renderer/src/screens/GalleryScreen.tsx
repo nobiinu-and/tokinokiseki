@@ -20,10 +20,17 @@ function formatEventRange(startDate: string, endDate: string): string {
   return `${sStr} 〜 ${eStr}`
 }
 
+interface EventStats {
+  photoCount: number
+  bestCount: number
+  thumbnailPath: string | null
+}
+
 export function GalleryScreen(): JSX.Element {
   const navigate = useNavigate()
   const { timelineId } = useApp()
   const [events, setEvents] = useState<EventConfirmed[]>([])
+  const [eventStats, setEventStats] = useState<Record<number, EventStats>>({})
   const [tagStats, setTagStats] = useState<TagStat[]>([])
   const [bestCount, setBestCount] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -34,11 +41,13 @@ export function GalleryScreen(): JSX.Element {
     Promise.all([
       window.api.getEvents(timelineId),
       window.api.getTagStats(timelineId),
-      window.api.getBestPhotos(timelineId)
-    ]).then(([evts, tags, bestPhotos]) => {
+      window.api.getBestPhotos(timelineId),
+      window.api.getEventStats(timelineId)
+    ]).then(([evts, tags, bestPhotos, stats]) => {
       setEvents(evts)
       setTagStats(tags)
       setBestCount(bestPhotos.length)
+      setEventStats(stats)
       setLoading(false)
     }).catch((err) => {
       console.error('Failed to load gallery data:', err)
@@ -104,23 +113,41 @@ export function GalleryScreen(): JSX.Element {
               <div className="gallery-section">
                 <h2 className="gallery-section-title">できごと</h2>
                 <div className="gallery-event-list">
-                  {events.map((event) => (
-                    <button
-                      key={event.id}
-                      className="gallery-event-card"
-                      onClick={() => navigate(`/gallery/event/${event.id}`)}
-                    >
-                      <div className="gallery-event-card-main">
-                        <span className="gallery-event-title">{event.title}</span>
-                        <span className="gallery-event-range">
-                          {formatEventRange(event.startDate, event.endDate)}
-                        </span>
-                      </div>
-                      <span className="event-type-badge">
-                        {event.type === 'range' ? '期間' : '日付リスト'}
-                      </span>
-                    </button>
-                  ))}
+                  {events.map((event) => {
+                    const stats = eventStats[event.id]
+                    return (
+                      <button
+                        key={event.id}
+                        className="gallery-event-card"
+                        onClick={() => navigate(`/gallery/event/${event.id}`)}
+                      >
+                        {stats?.thumbnailPath ? (
+                          <img
+                            className="gallery-event-thumb"
+                            src={stats.thumbnailPath}
+                            alt=""
+                          />
+                        ) : (
+                          <span className="gallery-event-thumb-placeholder">📷</span>
+                        )}
+                        <div className="gallery-event-card-main">
+                          <span className="gallery-event-title">{event.title}</span>
+                          <span className="gallery-event-range">
+                            {formatEventRange(event.startDate, event.endDate)}
+                            {' '}
+                            <span className="event-type-badge">
+                              {event.type === 'range' ? '期間' : '日付リスト'}
+                            </span>
+                          </span>
+                          {stats && (
+                            <span className="gallery-event-stats">
+                              {stats.photoCount}枚{stats.bestCount > 0 && ` ・ベスト${stats.bestCount}枚`}
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
             )}

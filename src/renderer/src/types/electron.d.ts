@@ -43,6 +43,7 @@ export interface ElectronAPI {
   addDatesToEvent(eventId: number, dates: string[]): Promise<void>
   removeDateFromEvent(eventId: number, date: string): Promise<boolean>
   generateEventTitleForDates(timelineId: number, dates: string[]): Promise<string>
+  getEventStats(timelineId: number): Promise<Record<number, { photoCount: number; bestCount: number; thumbnailPath: string | null }>>
 }
 
 declare global {

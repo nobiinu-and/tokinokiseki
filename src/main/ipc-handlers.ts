@@ -373,4 +373,22 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
       return db.generateEventTitleForDates(folderIds, dates)
     }
   )
+
+  ipcMain.handle(IPC_CHANNELS.GET_EVENT_STATS, async (_event, timelineId: number) => {
+    await db.ensureDb()
+    const folderIds = db.resolveTimelineFolderIds(timelineId)
+    const events = db.getEventsByTimeline(timelineId)
+    const stats: Record<number, { photoCount: number; bestCount: number; thumbnailPath: string | null }> = {}
+    for (const evt of events) {
+      const photoCount = db.getEventPhotoCount(folderIds, evt.startDate, evt.endDate)
+      const bestCount = db.getEventBestCount(folderIds, evt.startDate, evt.endDate)
+      const filePath = db.getEventThumbnail(folderIds, evt.startDate, evt.endDate)
+      stats[evt.id] = {
+        photoCount,
+        bestCount,
+        thumbnailPath: filePath ? pathToFileURL(getThumbnailPath(filePath)).toString() : null
+      }
+    }
+    return stats
+  })
 }
