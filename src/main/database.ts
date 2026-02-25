@@ -863,6 +863,78 @@ export function getEventPhotoCount(
   return result[0].values[0][0] as number
 }
 
+export interface EventStatsResult {
+  photoCount: number
+  bestCount: number
+  thumbnailFilePath: string | null
+}
+
+/** Get photo count, best count, and representative thumbnail for a date range in a single pass. */
+function getEventStatsForRange(
+  folderIds: number[],
+  startDate: string,
+  endDate: string
+): EventStatsResult {
+  if (folderIds.length === 0) return { photoCount: 0, bestCount: 0, thumbnailFilePath: null }
+  const d = getDb()
+  const { ph, params } = inPlaceholders(folderIds)
+
+  // Counts in a single aggregate query
+  const countResult = d.exec(
+    `SELECT COUNT(*), SUM(CASE WHEN is_best = 1 THEN 1 ELSE 0 END)
+     FROM photos
+     WHERE folder_id IN (${ph})
+       AND date(COALESCE(taken_at, file_modified_at)) >= ?
+       AND date(COALESCE(taken_at, file_modified_at)) <= ?`,
+    [...params, startDate, endDate]
+  )
+  const photoCount = countResult.length > 0 ? (countResult[0].values[0][0] as number) : 0
+  const bestCount = countResult.length > 0 ? ((countResult[0].values[0][1] as number) ?? 0) : 0
+
+  // Thumbnail: best photo first via ORDER BY is_best DESC
+  const thumbResult = d.exec(
+    `SELECT file_path FROM photos
+     WHERE folder_id IN (${ph})
+       AND date(COALESCE(taken_at, file_modified_at)) >= ?
+       AND date(COALESCE(taken_at, file_modified_at)) <= ?
+     ORDER BY is_best DESC, COALESCE(taken_at, file_modified_at) ASC
+     LIMIT 1`,
+    [...params, startDate, endDate]
+  )
+  const thumbnailFilePath =
+    thumbResult.length > 0 && thumbResult[0].values.length > 0
+      ? (thumbResult[0].values[0][0] as string)
+      : null
+
+  return { photoCount, bestCount, thumbnailFilePath }
+}
+
+/** Get stats for an event, handling both range and dates types correctly. */
+export function getEventStatsById(
+  folderIds: number[],
+  event: EventRow
+): EventStatsResult {
+  if (folderIds.length === 0) return { photoCount: 0, bestCount: 0, thumbnailFilePath: null }
+
+  if (event.type === 'dates' && event.dates && event.dates.length > 0) {
+    // For dates-type events, aggregate per individual date to avoid counting gap days
+    let photoCount = 0
+    let bestCount = 0
+    let thumbnailFilePath: string | null = null
+    for (const date of event.dates) {
+      const s = getEventStatsForRange(folderIds, date, date)
+      photoCount += s.photoCount
+      bestCount += s.bestCount
+      if (!thumbnailFilePath && s.thumbnailFilePath) {
+        thumbnailFilePath = s.thumbnailFilePath
+      }
+    }
+    return { photoCount, bestCount, thumbnailFilePath }
+  }
+
+  return getEventStatsForRange(folderIds, event.startDate, event.endDate)
+}
+
 export function computeEventSuggestions(
   timelineId: number,
   folderIds: number[]

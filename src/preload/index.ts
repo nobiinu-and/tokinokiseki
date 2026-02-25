@@ -135,5 +135,8 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.invoke(IPC_CHANNELS.REMOVE_DATE_FROM_EVENT, eventId, date),
 
   generateEventTitleForDates: (timelineId: number, dates: string[]) =>
-    ipcRenderer.invoke(IPC_CHANNELS.GENERATE_EVENT_TITLE_FOR_DATES, timelineId, dates)
+    ipcRenderer.invoke(IPC_CHANNELS.GENERATE_EVENT_TITLE_FOR_DATES, timelineId, dates),
+
+  getEventStats: (timelineId: number) =>
+    ipcRenderer.invoke(IPC_CHANNELS.GET_EVENT_STATS, timelineId)
 })
