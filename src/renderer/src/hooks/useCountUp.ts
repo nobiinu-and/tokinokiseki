@@ -16,7 +16,7 @@ export function useCountUp(target: number, duration = 600): number {
       return
     }
 
-    startValueRef.current = 0
+    startValueRef.current = current
     startTimeRef.current = 0
 
     const animate = (timestamp: number): void => {
