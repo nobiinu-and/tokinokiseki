@@ -73,6 +73,12 @@ export function GalleryScreen(): JSX.Element {
             <p className="text-hint">
               タイムラインを眺めて、気になった写真にベストをつけてみましょう
             </p>
+            <button
+              className="btn btn-secondary"
+              onClick={() => navigate('/timeline')}
+            >
+              タイムラインへ
+            </button>
           </div>
         ) : (
           <>

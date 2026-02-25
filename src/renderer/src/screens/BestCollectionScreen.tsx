@@ -5,9 +5,8 @@ import { usePhotoTags } from '../hooks/usePhotoTags'
 import { PhotoThumbnail } from '../components/PhotoThumbnail'
 import { Lightbox } from '../components/Lightbox'
 import { TopBar } from '../components/TopBar'
-import { formatDate } from '../utils/dateUtils'
+import { buildDateGroups } from '../utils/dateUtils'
 import type { Photo } from '../types/models'
-import type { DateGroup } from '../utils/dateUtils'
 
 export function BestCollectionScreen(): JSX.Element {
   const navigate = useNavigate()
@@ -30,21 +29,7 @@ export function BestCollectionScreen(): JSX.Element {
     })
   }, [timelineId])
 
-  const dateGroups = useMemo((): DateGroup[] => {
-    const map: Record<string, Photo[]> = {}
-    for (const photo of photos) {
-      const dateStr = (photo.takenAt || photo.fileModifiedAt || '').slice(0, 10)
-      if (!map[dateStr]) map[dateStr] = []
-      map[dateStr].push(photo)
-    }
-    return Object.entries(map)
-      .map(([date, datePhotos]) => ({
-        date,
-        displayDate: formatDate(date),
-        photos: datePhotos
-      }))
-      .sort((a, b) => b.date.localeCompare(a.date))
-  }, [photos])
+  const dateGroups = useMemo(() => buildDateGroups(photos), [photos])
 
   const allPhotosFlat = useMemo(() => dateGroups.flatMap((g) => g.photos), [dateGroups])
 

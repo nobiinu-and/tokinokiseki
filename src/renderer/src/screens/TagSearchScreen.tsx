@@ -5,9 +5,8 @@ import { usePhotoTags } from '../hooks/usePhotoTags'
 import { PhotoThumbnail } from '../components/PhotoThumbnail'
 import { Lightbox } from '../components/Lightbox'
 import { TopBar } from '../components/TopBar'
-import { formatDate } from '../utils/dateUtils'
+import { buildDateGroups } from '../utils/dateUtils'
 import type { Photo } from '../types/models'
-import type { DateGroup } from '../utils/dateUtils'
 
 interface TagStat {
   name: string
@@ -45,23 +44,7 @@ export function TagSearchScreen(): JSX.Element {
   }, [timelineId, selectedTag])
 
   // Group photos by date
-  const dateGroups = useMemo((): DateGroup[] => {
-    const map: Record<string, Photo[]> = {}
-    for (const photo of photos) {
-      const dateStr = (photo.takenAt || photo.fileModifiedAt || '').slice(0, 10)
-      if (!map[dateStr]) {
-        map[dateStr] = []
-      }
-      map[dateStr].push(photo)
-    }
-    const groups: DateGroup[] = Object.entries(map).map(([date, datePhotos]) => ({
-      date,
-      displayDate: formatDate(date),
-      photos: datePhotos
-    }))
-    groups.sort((a, b) => b.date.localeCompare(a.date))
-    return groups
-  }, [photos])
+  const dateGroups = useMemo(() => buildDateGroups(photos), [photos])
 
   // Flat list of all photos for Lightbox navigation
   const allPhotosFlat = useMemo(() => {

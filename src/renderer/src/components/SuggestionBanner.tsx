@@ -29,7 +29,7 @@ export function SuggestionBanner({
           はい
         </button>
         <button className="btn btn-ghost btn-small" onClick={() => onDismiss(suggestion)}>
-          いいえ
+          あとで
         </button>
         <button className="btn btn-ghost btn-small" onClick={() => onAdjust(suggestion)}>
           調整

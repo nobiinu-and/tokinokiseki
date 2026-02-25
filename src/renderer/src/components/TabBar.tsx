@@ -22,6 +22,7 @@ export function TabBar(): JSX.Element {
         return (
           <button
             key={tab.path}
+            type="button"
             role="tab"
             aria-selected={active}
             aria-label={tab.label}
