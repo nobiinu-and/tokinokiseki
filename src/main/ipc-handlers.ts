@@ -380,13 +380,13 @@ export function registerIpcHandlers(mainWindow: BrowserWindow): void {
     const events = db.getEventsByTimeline(timelineId)
     const stats: Record<number, { photoCount: number; bestCount: number; thumbnailPath: string | null }> = {}
     for (const evt of events) {
-      const photoCount = db.getEventPhotoCount(folderIds, evt.startDate, evt.endDate)
-      const bestCount = db.getEventBestCount(folderIds, evt.startDate, evt.endDate)
-      const filePath = db.getEventThumbnail(folderIds, evt.startDate, evt.endDate)
+      const s = db.getEventStatsById(folderIds, evt)
       stats[evt.id] = {
-        photoCount,
-        bestCount,
-        thumbnailPath: filePath ? pathToFileURL(getThumbnailPath(filePath)).toString() : null
+        photoCount: s.photoCount,
+        bestCount: s.bestCount,
+        thumbnailPath: s.thumbnailFilePath
+          ? pathToFileURL(getThumbnailPath(s.thumbnailFilePath)).toString()
+          : null
       }
     }
     return stats
