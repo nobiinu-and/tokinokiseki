@@ -8,7 +8,7 @@
 npm run dev        # 開発サーバー起動（レンダラーはHMR、メインプロセスは再起動が必要）
 npm run build      # プロダクションビルド
 npm run package    # ビルド + Windowsインストーラー生成（NSIS）
-npx vitest run     # テスト実行（Vitest）
+npm test           # テスト実行（Vitest）
 ```
 
 ## 環境制約
@@ -41,7 +41,7 @@ Preload (src/preload/index.ts)
 Renderer (src/renderer/src/)
 ├── App.tsx           — HashRouter + TabBar レイアウト
 ├── screens/          — Home, Timeline, DateDetail, Gallery, EventDetail,
-│                       TagDetail, BestCollection, TagSearch, Slideshow
+│                       TagDetail, BestCollection, Slideshow
 ├── components/       — DateCard, PhotoThumbnail, Lightbox, TopBar, TabBar,
 │                       ScanProgress, EventManager, SuggestionBanner, etc.
 ├── hooks/            — useTimeline, usePhotos, useScan, useSlideshow,
