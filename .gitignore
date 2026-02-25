@@ -5,3 +5,5 @@ dist/
 .DS_Store
 Thumbs.db
 .claude/settings.local.json
+test-results/
+playwright-report/
