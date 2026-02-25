@@ -8,9 +8,8 @@
 npm run dev        # 開発サーバー起動（レンダラーはHMR、メインプロセスは再起動が必要）
 npm run build      # プロダクションビルド
 npm run package    # ビルド + Windowsインストーラー生成（NSIS）
+npx vitest run     # テスト実行（Vitest）
 ```
-
-テストフレームワークは未導入。
 
 ## 環境制約
 
@@ -29,19 +28,40 @@ Main Process (src/main/)
 ├── scanner.ts        — フォルダ再帰走査、EXIF解析、サムネイル生成
 ├── thumbnail.ts      — nativeImage サムネイル + HEIC変換の制御
 ├── heic-worker.ts    — Worker Thread: heic-convert で HEIC→JPEG 変換
-└── ipc-handlers.ts   — 全 ipcMain.handle() の登録
+├── clip.ts / clip-worker.ts   — CLIP モデルによるシーン分類・回転補正
+├── detect.ts / detect-worker.ts — YOLO モデルによる物体検出
+├── rotation.ts       — 画像回転補正
+├── duplicate.ts      — 重複写真検出
+├── ipc-handlers.ts   — 全 ipcMain.handle() の登録
+└── scanner.test.ts   — スキャナーのユニットテスト（Vitest）
 
 Preload (src/preload/index.ts)
 └── contextBridge で window.api を公開
 
 Renderer (src/renderer/src/)
-├── App.tsx           — HashRouter（4ルート）
-├── screens/          — FolderSelect, Timeline, DateDetail, Slideshow
-├── components/       — DateCard, PhotoThumbnail, Lightbox, TopBar, ScanProgress
-├── hooks/            — useTimeline, usePhotos, useScan, useSlideshow
-├── context/          — AppContext（timelineId, isScanning）
+├── App.tsx           — HashRouter + TabBar レイアウト
+├── screens/          — Home, Timeline, DateDetail, Gallery, EventDetail,
+│                       TagDetail, BestCollection, TagSearch, Slideshow
+├── components/       — DateCard, PhotoThumbnail, Lightbox, TopBar, TabBar,
+│                       ScanProgress, EventManager, SuggestionBanner, etc.
+├── hooks/            — useTimeline, usePhotos, useScan, useSlideshow,
+│                       usePhotoTags, useCountUp
+├── utils/            — dateUtils（formatDate, buildDateGroups）
+├── context/          — AppContext（timelineId, isScanning, loading）
 └── types/            — IPCチャンネル名、モデル定義、electron.d.ts
 ```
+
+### 3空間モデル（ナビゲーション）
+
+アプリは3つの空間で構成され、下部タブバーで自由に行き来する:
+
+| 空間 | ルート | 役割 |
+|------|--------|------|
+| ホーム (`/`) | Home | サマリー表示、フォルダ管理、今日の提案 |
+| タイムライン (`/timeline`) | Timeline → DateDetail | 記録の川を眺める。発見し、触れる（入力の場） |
+| ギャラリー (`/gallery`) | Gallery → EventDetail / TagDetail / BestCollection | 記憶の棚。行動の成果が形になる（出力の場） |
+
+詳細は `docs/040-spec-ui-design.md` と `docs/vision.md` を参照。
 
 ## 主要パターン
 
@@ -108,6 +128,19 @@ Worker は `electron.vite.config.ts` で別エントリポイントとして定�
 - サジェスト: 固定パラメータ（minDays=2, maxGap=1, minPhotosPerDay=3）で自動検出、バナーで提示（常にrange型）
 - タイトル自動生成: 期間/日付内の写真タグから上位1〜2個を使用（`TAG_DISPLAY_NAMES` マッピングで日本語化）
 - 関連コンポーネント: `SuggestionBanner`, `EventTitleDialog`, `RangeSelectBar`, `DatesSelectBar`, `AddDatesBar`, `EventManager`
+
+### 自動タグ付け
+
+ONNX Runtime で CLIP / YOLO モデルを Worker Thread 上で実行:
+- **シーン分類**（CLIP）: 屋外・屋内・夜景などを自動判定
+- **物体検出**（YOLO）: 人物・動物・食べ物などを自動検出
+- **回転補正**（CLIP）: EXIF 情報がない写真の向きを自動判定
+- UI上では技術用語（CLIP, YOLO, 閾値）を隠し、「シーンを分類する」「写っているものを見つける」等の表現を使う
+
+### 共有ユーティリティ
+
+- `src/renderer/src/utils/dateUtils.ts` — `formatDate`（不正日付セーフ）、`buildDateGroups`（写真の日付グルーピング）
+- `src/renderer/src/hooks/usePhotoTags.ts` — 写真タグの読み込み・追加・削除を一元管理するカスタムフック
 
 ## 設定上の注意
 
